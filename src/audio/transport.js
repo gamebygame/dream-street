@@ -14,16 +14,17 @@ export function outputTime(context,now){
 }
 
 export class Transport{
-  constructor({contextFactory,now=()=>performance.now(),setTimer=(fn,ms)=>globalThis.setInterval(fn,ms),clearTimer=id=>globalThis.clearInterval(id),wait=ms=>new Promise(resolve=>setTimeout(resolve,ms)),voicesFactory=ctx=>new Voices(ctx)}={}){
+  constructor({contextFactory,reference=null,now=()=>performance.now(),setTimer=(fn,ms)=>globalThis.setInterval(fn,ms),clearTimer=id=>globalThis.clearInterval(id),wait=ms=>new Promise(resolve=>setTimeout(resolve,ms)),voicesFactory=ctx=>new Voices(ctx)}={}){
     this.contextFactory=contextFactory||(()=>new AudioContext({latencyHint:'interactive'}));
     this.now=now;this.setTimer=setTimer;this.clearTimer=clearTimer;this.wait=wait;this.voicesFactory=voicesFactory;
     this.status='idle';this.heldBeat=0;this.lastBeat=0;this.generation=0;this.timer=null;
-    this.context=null;this.voices=null;this.volume=.45;this.muted=false;this.syncMode='not-started';this.error=null;
+    this.context=null;this.voices=null;this.volume=.45;this.muted=false;this.syncMode='not-started';this.error=null;this.reference=reference;
   }
   async ensureAudio(){
     if(this.context)return;
     this.context=this.contextFactory();this.voices=this.voicesFactory(this.context);
-    this.voices.prewarm(notesBetween(0,160));this.voices.setVolume(this.volume);this.voices.setMuted(this.muted);
+    if(!this.reference)this.voices.prewarm(notesBetween(0,CONFIG.cycleBeats));
+    this.voices.setVolume(this.volume);this.voices.setMuted(this.muted);
     this.context.addEventListener?.('statechange',()=>{
       if(this.status==='running'&&this.context.state!=='running') this.pause();
     });
@@ -33,6 +34,14 @@ export class Transport{
     if(this.status==='running'){
       const stamp=outputTime(this.context,this.now());this.syncMode=stamp.mode;
       beat=Math.max(this.lastBeat,this.heldBeat+Math.max(0,stamp.time-this.epoch)*2);
+      const source=this.reference?.sample();
+      if(source){
+        if(source.seek){
+          this.heldBeat=source.beat;this.lastBeat=source.beat;this.cursor=source.beat;this.voices.stopAll();
+          for(const note of activeNotesAt(source.beat))if(this.reference.allows(note))this.voices.play(note,this.context.currentTime,(source.beat-note.beat)/2);
+        }
+        beat=Math.max(this.lastBeat,source.beat);this.epoch=stamp.time-(beat-this.heldBeat)/2;this.syncMode='youtube-player-estimate';
+      }
       this.lastBeat=beat;
     }
     return {beat,travelS:beat*CONFIG.distancePerBeat,status:this.status};
@@ -52,18 +61,25 @@ export class Transport{
       }
       if(this.context.state!=='running')throw new Error('浏览器尚未允许声音播放。请再次点击继续。');
       this.epoch=this.context.currentTime+.1;this.lastBeat=this.heldBeat;
+      await this.reference?.resume(this.heldBeat,this.context,this.epoch);
+      if(generation!==this.generation){this.reference?.pause();return;}
       this.cursor=this.heldBeat;this.voices.stopAll();this.voices.setPaused(false);
-      for(const note of activeNotesAt(this.heldBeat))this.voices.play(note,this.epoch,(this.heldBeat-note.beat)/2);
+      for(const note of activeNotesAt(this.heldBeat))if(this.reference?.allows(note)??true)this.voices.play(note,this.epoch,(this.heldBeat-note.beat)/2);
       this.status='running';this.schedule();
       this.timer=this.setTimer(()=>{if(generation===this.generation)this.schedule();},CONFIG.schedulerInterval);
     }catch(error){this.error=error;await this.pause();throw error;}
   }
   schedule(){
     if(this.status!=='running')return;
+    const beat=this.sample().beat;this.reference?.update(beat);
+    this.voices.setPaused(Boolean(this.reference?.waiting));
+    if(this.reference?.waiting)return;
     const now=this.context.currentTime;
     const horizon=this.heldBeat+(now+CONFIG.audioLookahead-this.epoch)*2;
     if(horizon<=this.cursor)return;
+    if(this.reference&&!this.reference.allows()){this.cursor=horizon;return;}
     for(const note of notesBetween(this.cursor,horizon)){
+      if(this.reference&&!this.reference.allows(note))continue;
       const scheduled=this.epoch+(note.beat-this.heldBeat)/2;
       const offset=Math.max(0,now-scheduled);
       if(offset<note.duration/2)this.voices.play(note,Math.max(now,scheduled),offset);
@@ -73,6 +89,7 @@ export class Transport{
   async pause(){
     if(this.pausePromise){this.status='paused';this.generation++;return this.pausePromise;}
     this.heldBeat=this.sample().beat;this.lastBeat=this.heldBeat;this.status='paused';this.generation++;
+    this.reference?.pause();
     if(this.timer!==null){this.clearTimer(this.timer);this.timer=null;}
     if(this.context?.state==='running'){
       this.voices.setPaused(true);
@@ -89,8 +106,8 @@ export class Transport{
     this.heldBeat=Math.max(0,Number.isFinite(beat)?beat:0);this.lastBeat=this.heldBeat;
     if(running)await this.resume();
   }
-  setVolume(value){this.volume=Math.max(0,Math.min(1,value));this.voices?.setVolume(this.volume);}
-  setMuted(value){this.muted=Boolean(value);this.voices?.setMuted(this.muted);}
-  diagnostics(){return {...this.sample(),syncMode:this.syncMode,contextState:this.context?.state||'not-created',activeVoices:this.voices?.active.size||0,cachedBuffers:this.voices?.cache.size||0,schedulers:this.timer===null?0:1,generation:this.generation};}
-  async dispose(){await this.pause();this.voices?.dispose();await this.context?.close();}
+  setVolume(value){this.volume=Math.max(0,Math.min(1,value));this.voices?.setVolume(this.volume);this.reference?.setVolume(this.volume);}
+  setMuted(value){this.muted=Boolean(value);this.voices?.setMuted(this.muted);this.reference?.setMuted(this.muted);}
+  diagnostics(){return {...this.sample(),syncMode:this.syncMode,music:this.reference?.diagnostics()??{mode:'original'},contextState:this.context?.state||'not-created',activeVoices:this.voices?.active.size||0,cachedBuffers:this.voices?.cache.size||0,schedulers:this.timer===null?0:1,generation:this.generation};}
+  async dispose(){await this.pause();this.reference?.dispose();this.voices?.dispose();await this.context?.close();}
 }

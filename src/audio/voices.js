@@ -22,38 +22,62 @@ export class Voices{
   setPaused(value){this.paused=value;this.applyVolume();}
   setRecordingDelay(seconds){this.captureDelay.delayTime.setTargetAtTime(Math.max(0,Math.min(.3,seconds)),this.context.currentTime,.03);}
   bufferFor(note){
-    const key=`${note.stem}:${note.notes?.join(',')||''}:${note.duration}`;
+    const key=`${note.variant}:${note.stem}:${note.notes?.join(',')||''}:${note.duration}`;
     if(this.cache.has(key))return this.cache.get(key);
     const rate=this.context.sampleRate,duration=note.duration*.5;
     const buffer=this.context.createBuffer(2,Math.ceil(rate*duration),rate);
     const rand=random(137+note.stem.charCodeAt(0)),data=buffer.getChannelData(0),right=buffer.getChannelData(1);
+    const pocket=note.variant==='pocket',parade=note.variant==='parade',lyric=note.variant==='lyric';
+    const tonal=['chord','melody','arp'].includes(note.stem);
+    const frequencies=(note.notes||[]).map(frequency);
+    const raw=new Float32Array(data.length);
     let previousNoise=0,lowNoise=0;
     for(let i=0;i<data.length;i++){
       const t=i/rate,tail=Math.min(1,(duration-t)/.025);let sample=0;
       const noise=rand();lowNoise=.68*lowNoise+.32*noise;const bright=noise-previousNoise;previousNoise=noise;
       if(note.stem==='kick'){
-        const phase=2*Math.PI*(47*t+(100*.025)*(1-Math.exp(-t/.025)));
-        sample=.88*Math.sin(phase)*Math.exp(-t/ .11)+.035*bright*Math.exp(-t/.006);
+        const phase=2*Math.PI*((pocket?43:parade?53:47)*t+(100*.025)*(1-Math.exp(-t/.025)));
+        sample=.88*Math.sin(phase)*Math.exp(-t/(pocket?.16:.11))+.035*bright*Math.exp(-t/.006);
       }else if(note.stem==='clap'){
         const bursts=[0,.013,.026].reduce((s,o)=>s+(t>=o?Math.exp(-(t-o)/.007):0),0);
-        sample=(noise-lowNoise)*(.27*bursts+.19*Math.exp(-t/.055));
+        sample=(noise-lowNoise)*(.27*bursts+.19*Math.exp(-t/(pocket?.085:.055)));
+        if(pocket||parade)sample+=.20*Math.sin(2*Math.PI*184*t)*Math.exp(-t/.036);
       }else if(note.stem==='hat'){
-        sample=bright*.19*Math.exp(-t/.028);
+        sample=bright*.17*Math.exp(-t/(duration>.2?.13:.025));
       }else if(note.stem==='wood'){
-        const f=frequency(note.notes[0]);
-        sample=(Math.sin(2*Math.PI*f*t)+.45*Math.sin(2*Math.PI*f*2.67*t))*.32*Math.exp(-t/.055)+.08*noise*Math.exp(-t/.008);
+        const f=frequencies[0]*(parade?.65:1);
+        sample=(Math.sin(2*Math.PI*f*t)+.45*Math.sin(2*Math.PI*f*2.67*t))*.32*Math.exp(-t/(parade?.085:.055))+.08*noise*Math.exp(-t/.008);
       }else if(note.stem==='bass'){
-        const f=frequency(note.notes[0]),attack=Math.min(1,t/.006);
-        const tone=Math.sin(2*Math.PI*f*t)+.22*Math.sin(2*Math.PI*f*2*t)+.085*Math.sin(2*Math.PI*f*3*t);
-        sample=.52*tone*attack*Math.exp(-t/.16);
+        const f=frequencies[0],attack=Math.min(1,t/.009);
+        const tone=Math.sin(2*Math.PI*f*t)+.26*Math.sin(2*Math.PI*f*2*t)+.11*Math.sin(2*Math.PI*f*3*t)*Math.exp(-t/.14);
+        sample=.55*tone*attack*Math.exp(-t/(lyric?.7:pocket?.29:parade?.17:.22));
       }else if(note.stem==='chord'){
-        const envelope=(1-Math.exp(-t/.018))*Math.exp(-t/.74)*Math.min(1,(duration-t)/.4);
-        for(const n of note.notes){const f=frequency(n);sample+=(Math.sin(2*Math.PI*f*t)+.16*Math.sin(2*Math.PI*f*2.002*t)+.12*Math.sin(2*Math.PI*f*.998*t))*.16*envelope;}
+        const envelope=(1-Math.exp(-t/(lyric?.36:parade?.012:.025)))*Math.exp(-t/(lyric?2.1:pocket?.63:parade?.25:.86))*Math.min(1,(duration-t)/(lyric?.55:.15));
+        for(const f of frequencies){
+          const phase=2*Math.PI*f*t;
+          const tone=lyric?(Math.sin(phase+.006*Math.sin(t*31))+Math.sin(phase*1.002))*.65+.10*Math.sin(phase*3):
+            pocket?Math.sin(phase+1.1*Math.sin(phase*2)*Math.exp(-t/.14)):
+            parade?Math.sin(phase)+.36*Math.sin(phase*2)+.18*Math.sin(phase*3):
+              Math.sin(phase)+.30*Math.sin(phase*2.001)+.13*Math.sin(phase*3)+.14*Math.sin(phase*.998);
+          sample+=tone*.145*envelope;
+        }
       }else{
-        const f=frequency(note.notes[0]),envelope=(1-Math.exp(-t/.008))*Math.exp(-t/.22);
-        sample=(Math.sin(2*Math.PI*f*t)+.18*Math.sin(2*Math.PI*f*2*t)*Math.exp(-t/.07))*.38*envelope;
+        const f=frequencies[0],phase=2*Math.PI*f*t;
+        const arp=note.stem==='arp',envelope=(1-Math.exp(-t/(lyric&&!arp?.11:parade&&!arp?.035:.007)))*Math.exp(-t/(lyric?(arp?.65:1.05):arp?.13:parade?.36:pocket?.32:.24));
+        const tone=lyric?(arp?Math.sin(phase)+.34*Math.sin(phase*2.003)*Math.exp(-t/.24):Math.sin(phase+.03*Math.sin(t*29))+.15*Math.sin(phase*2)):
+          pocket?Math.sin(phase+.85*Math.sin(phase*2)*Math.exp(-t/.1)):
+          parade?Math.sin(phase)+.28*Math.sin(phase*3)+.12*Math.sin(phase*5):Math.sin(phase)+.22*Math.sin(phase*2.002)+.09*Math.sin(phase*3);
+        sample=tone*(arp?.26:.41)*envelope;
       }
-      const fade=Math.max(0,tail);data[i]=sample*fade;right[i]=sample*fade;
+      raw[i]=sample*Math.max(0,tail);
+    }
+    // Short, baked stereo reflections are bounded by each note and pause with the transport.
+    const leftDelay=Math.round(rate*.1875),rightDelay=Math.round(rate*.28125);
+    const pan=note.stem==='wood'?-.22:note.stem==='hat'?.22:0;
+    for(let i=0;i<data.length;i++){
+      const tail=Math.max(0,Math.min(1,(data.length-i)/(rate*.035)));
+      data[i]=(raw[i]*(1-pan)+(tonal&&i>leftDelay?.18*raw[i-leftDelay]:0))*tail;
+      right[i]=(raw[i]*(1+pan)+(tonal&&i>rightDelay?.18*raw[i-rightDelay]:0))*tail;
     }
     this.cache.set(key,buffer);return buffer;
   }
