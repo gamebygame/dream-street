@@ -1,0 +1,11 @@
+dist/
+artifacts/
+test-results/
+playwright-report/
+node_modules/
+.cache/
+public/
+package.json
+package-lock.json
+*.md
+index.html

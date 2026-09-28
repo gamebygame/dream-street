@@ -27,6 +27,7 @@ G2.2 的演示视频明确标注无声，仅用于看动作；原曲在本机页
 | Three.js | 0.185.1 | 浏览器运行时渲染、数学及几何合并辅助 | MIT |
 | Vite | 8.2.2 | 开发和构建 | MIT |
 | @playwright/test | 1.63.0 | 测试与演示录制 | Apache-2.0 |
+| Prettier | 3.9.9 | 源码格式化（仅开发依赖，不进入构建产物） | MIT |
 
 完整传递依赖版本及许可标识位于 `package-lock.json`。构建工具链还包含 MPL-2.0、Apache-2.0、BSD-3-Clause、ISC 和 MIT 依赖；没有修改这些第三方包的源码。运行时依赖 Three.js 的完整 MIT 声明随 `public/THIRD_PARTY_NOTICES.txt` 进入构建输出。
 
