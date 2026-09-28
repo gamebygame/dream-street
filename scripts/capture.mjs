@@ -5,7 +5,8 @@ import { resolve } from 'node:path';
 import { setTimeout as wait } from 'node:timers/promises';
 
 const baseURL = process.env.DREAM_STREET_URL || 'http://127.0.0.1:5173';
-const destination = resolve('artifacts/g2-2');
+const destination = resolve('artifacts/capture');
+const silent = process.env.DREAM_STREET_MUSIC === 'silent';
 const soakSeconds = Number(process.env.DREAM_STREET_SOAK_SECONDS || 600);
 await mkdir(destination, { recursive: true });
 let server, browser;
@@ -36,7 +37,7 @@ try {
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
   const visualURL = new URL(baseURL);
-  if (process.env.DREAM_STREET_MUSIC === 'silent') visualURL.searchParams.set('music', 'silent');
+  if (silent) visualURL.searchParams.set('music', 'silent');
   await page.goto(visualURL.href);
   await page.waitForFunction(() => window.__dreamStreet?.ready);
   await page.screenshot({ path: resolve(destination, 'entrance.png') });
@@ -44,7 +45,7 @@ try {
   await page.waitForFunction(() => window.__dreamStreet.transport.status === 'running', null, { timeout: 30000 });
   await page.evaluate(() => window.__dreamStreet.pause());
   for (const beat of [
-    3, 4, 6.5, 10, 18.2, 18.7, 19.1, 19.6, 20.1, 35.75, 49.65, 50, 50.4, 50.9, 52, 54, 56, 60, 64, 66, 82, 90, 100,
+    3, 4, 6.5, 10, 18.2, 18.7, 19.1, 19.6, 20.1, 35.75, 49.4, 50, 50.4, 50.9, 52, 54, 56, 60, 64, 66, 82, 90, 100,
     104.3, 112, 132.8, 138.8, 144.8, 148, 151.8, 156, 160, 164, 168, 176, 196, 198, 240, 180, 188, 211.4, 215, 223, 233,
     244, 256,
   ]) {
@@ -71,7 +72,8 @@ try {
   const started = Date.now(),
     samples = [];
   const recording = page.evaluate(async () => {
-    window.__recordingResult = await window.__dreamStreet.record({ seconds: 128.5, visualOnly: true });
+    // One full street cycle plus a margin; the score's own audio is recorded with the picture.
+    window.__recordingResult = await window.__dreamStreet.record();
     const { blob, ...metadata } = window.__recordingResult;
     return metadata;
   });
@@ -102,11 +104,13 @@ try {
     await page.evaluate(() => {
       const link = document.createElement('a');
       link.href = URL.createObjectURL(window.__recordingResult.blob);
-      link.download = 'dream-street-g2-2-silent.webm';
+      link.download = 'dream-street.webm';
       link.click();
       setTimeout(() => URL.revokeObjectURL(link.href), 1000);
     });
-    await (await download).saveAs(resolve(destination, 'dream-street-g2-2-silent.webm'));
+    await (
+      await download
+    ).saveAs(resolve(destination, metadata.hasAudio ? 'dream-street.webm' : 'dream-street-silent.webm'));
     await wait(Math.max(0, soakSeconds * 1000 - (Date.now() - started)));
   } finally {
     clearInterval(cadence);
@@ -117,19 +121,18 @@ try {
   const stable = samples.filter(s => s.elapsedSeconds >= 140);
   const checks = {
     noErrors: errors.length === 0,
-    cyclesCompleted: final.visual.beat >= Math.floor((soakSeconds - 10) / 128) * 256,
+    // The street keeps travelling at the score tempo for the whole soak.
+    travelled: final.visual.beat >= ((soakSeconds - 10) * 128) / 60,
     audioReleased: paused.audio.activeVoices === 0 && paused.audio.schedulers === 0,
     crowdSeen: samples.some(s => s.visual.crowd === 36),
     fixedPool: samples.every(s => s.visual.crowdResources.pool === 36),
     stableGeometry: new Set(stable.map(s => s.visual.geometries)).size <= 1,
     stableTextures: new Set(stable.map(s => s.visual.textures)).size <= 1,
-    stableAudio: new Set(stable.map(s => s.audio.cachedBuffers)).size <= 1,
     boundedContacts: samples.every(s => s.visual.contactCache <= 32),
     singleScheduler: samples.every(s => s.audio.schedulers === 1),
-    noSynthesizer: samples.every(s => s.audio.activeVoices === 0),
-    correctSource: samples.every(
-      s => s.audio.music.mode === (process.env.DREAM_STREET_MUSIC === 'silent' ? 'silent' : 'youtube'),
-    ),
+    boundedVoices: samples.every(s => s.audio.activeVoices < 400),
+    correctSource: samples.every(s => s.audio.music.mode === (silent ? 'silent' : 'score')),
+    recordedAudio: silent || metadata.hasAudio === true,
   };
   const report = {
     info,

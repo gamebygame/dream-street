@@ -4,7 +4,7 @@ export default defineConfig({
   timeout: 45_000,
   workers: 1,
   fullyParallel: false,
-  reporter: [['list'], ['json', { outputFile: 'artifacts/g2-2/browser-results.json' }]],
+  reporter: [['list'], ['json', { outputFile: 'artifacts/browser/results.json' }]],
   use: {
     channel: 'chrome',
     headless: true,
