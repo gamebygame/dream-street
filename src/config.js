@@ -12,7 +12,7 @@ export const CONFIG = Object.freeze({
   actorScale: 0.91,
   pixelRatioLimit: 1.5,
   wardrobeGrace: 8,
-  contactLead: 0.35,
+  contactLead: 0.6,
   audioLookahead: 0.15,
   schedulerInterval: 25,
 });

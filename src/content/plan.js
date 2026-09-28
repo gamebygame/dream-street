@@ -6,6 +6,10 @@ export const smooth = t => {
   return t * t * (3 - 2 * t);
 };
 export const FOUR_HITS = Object.freeze([50, 52, 54, 56]);
+/** Garment reveal lengths in beats. Each four-hit garment is complete just before its accent lands. */
+export const REVEAL_BEATS = Object.freeze({ change: 1.8, fourHit: 0.5, recovery: 2.2 });
+/** Cycle-local span of the four-hit phrase: two beats of preparation before the first accent, four after the last. */
+export const FOUR_HIT_WINDOW = Object.freeze({ start: FOUR_HITS[0] - 2, end: FOUR_HITS.at(-1) + 4 });
 export const ACCESSORIES = Object.freeze([
   'scarf',
   'watch',
@@ -190,11 +194,16 @@ function changeOutfit(state, next, beat, duration) {
   state.changeBeat = beat;
   state.transitionBeats = duration;
 }
+/** The four signature accents need free hands: any handheld prop is set down as the four-hit window opens. */
+function setDownForFourHit(state, until) {
+  const start = Math.floor(until / CONFIG.cycleBeats) * CONFIG.cycleBeats + FOUR_HIT_WINDOW.start;
+  if (until >= start && state.accessoryBeat < start && state.accessories.length) changeAccessories(state, [], start);
+}
 function settle(state, until) {
   if (state.lastContact === null) return;
   const recovery = Math.ceil((state.lastContact + CONFIG.wardrobeGrace) / 2) * 2;
   if (until >= recovery && state.outfit !== 'old') {
-    changeOutfit(state, 'old', recovery, 2.2);
+    changeOutfit(state, 'old', recovery, REVEAL_BEATS.recovery);
   }
   if (until >= recovery) changeAccessories(state, [], recovery);
   state.returnBeat = recovery;
@@ -219,8 +228,9 @@ export function wardrobeAt(beat) {
   const start = Math.max(0, Math.floor(beat / CONFIG.cycleBeats) - 1) * CONFIG.cycleBeats;
   for (const p of contactsBetween(start - 1e-6, beat)) {
     settle(state, p.beat);
+    setDownForFourHit(state, p.beat);
     if (p.outfit && p.outfit !== state.outfit) {
-      changeOutfit(state, p.outfit, p.beat, p.hit === undefined ? 1.8 : 1.15);
+      changeOutfit(state, p.outfit, p.beat, p.hit === undefined ? REVEAL_BEATS.change : REVEAL_BEATS.fourHit);
       if (p.outfit === 'sport' || p.outfit === 'open')
         changeAccessories(
           state,
@@ -235,6 +245,7 @@ export function wardrobeAt(beat) {
     state.lastContact = p.beat;
   }
   settle(state, beat);
+  setDownForFourHit(state, beat);
   state.progress = smooth((beat - state.changeBeat) / state.transitionBeats);
   state.transitionAge = beat - state.changeBeat;
   state.layers = layersAt(state, beat);

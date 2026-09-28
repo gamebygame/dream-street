@@ -1,4 +1,4 @@
-import { mod, wardrobeAt, themeWeightsAt } from '../content/plan.js';
+import { mod, smooth, wardrobeAt, themeWeightsAt, FOUR_HIT_WINDOW } from '../content/plan.js';
 import { CONFIG } from '../config.js';
 import { greetingAt } from '../content/social.js';
 
@@ -149,6 +149,44 @@ const LYRIC=[
   [28,pose({hip:[-.025,.89,.01],yaw:-.08,leftHand:[.18,.87,.29],rightHand:[-.16,1.01,.31],head:[.16,-.10,.03],chest:[.12,-.05,.025]})],
 ];
 
+// The four-hit memory (H1-01): four garments, four signature accents on beats 50, 52, 54 and 56 - press the hat,
+// pop the chest and shoulders, turn and stand firm, open the body. Each accent has an anticipation, an arrival, a
+// brief readable hold and a recovery. Restored from the G1 phrase and re-posed for backward-hinged elbows.
+// prettier-ignore
+const HAT=pose({hip:[-.025,.86,.015],chest:[.08,.08,.08],head:[.10,-.08,-.12],rightHand:[-.13,1.91,.19],leftHand:[.53,1.04,.30],rightFoot:[-.22,.095,.29]});
+// prettier-ignore
+const CHEST_POP=pose({hip:[0,.85,0],chest:[-.12,0,0],head:[-.05,0,0],leftHand:[.75,1.43,.21],rightHand:[-.75,1.43,.21],leftFoot:[.29,.095,.15],rightFoot:[-.29,.095,.15]});
+// prettier-ignore
+const TURN=pose({hip:[.015,.89,0],yaw:-.72,chest:[.015,-.15,-.10],head:[0,.14,0],leftHand:[.62,1.60,.18],rightHand:[-.38,1.13,.41],leftFoot:[.24,.095,.26],rightFoot:[-.24,.095,-.23],coat:.35});
+// prettier-ignore
+const OPEN=pose({hip:[0,.94,0],yaw:.05,chest:[-.085,0,0],head:[-.06,0,0],leftHand:[.87,1.65,.08],rightHand:[-.87,1.65,.08],leftFoot:[.26,.095,.08],rightFoot:[-.26,.095,.08],coat:.12});
+// A held accent keeps a little life instead of freezing the whole body.
+const settle = accent => blendPose(accent, pose({}), 0.1);
+// Local beat 0 is the cycle's beat 48; the accents land on local beats 2, 4, 6 and 8.
+// prettier-ignore
+const FOUR_HIT=[
+  [0,pose({})],
+  [1.2,pose({hip:[-.02,.87,0],chest:[.12,0,.04],rightHand:[-.27,1.65,.34],leftHand:[.32,.98,.36]})],
+  [1.82,pose({...HAT,hip:[-.03,.83,0],rightHand:[-.16,1.83,.25]})],
+  [2,HAT],[2.42,settle(HAT)],
+  [3.15,pose({hip:[0,.89,0],chest:[.08,0,0],leftHand:[.17,1.19,.43],rightHand:[-.17,1.19,.43]})],
+  [3.8,pose({hip:[0,.79,0],leftHand:[.49,1.30,.33],rightHand:[-.49,1.30,.33]})],
+  [4,CHEST_POP],[4.42,settle(CHEST_POP)],
+  [5.12,pose({hip:[.04,.85,0],yaw:.25,chest:[.06,.10,0],leftHand:[.34,1.21,.42],rightHand:[-.51,1.52,.27],coat:-.12})],
+  [5.8,pose({...TURN,yaw:-.52,hip:[.04,.86,0],coat:.24})],
+  [6,TURN],[6.4,settle(TURN)],
+  [7.1,pose({hip:[0,.86,0],yaw:-.26,chest:[.12,0,0],leftHand:[.22,1.10,.40],rightHand:[-.22,1.10,.40],coat:.22})],
+  [7.8,pose({...OPEN,hip:[0,.87,0],leftHand:[.65,1.39,.24],rightHand:[-.65,1.39,.24]})],
+  [8,OPEN],[8.52,settle(OPEN)],
+  [10,pose({hip:[0,.91,0],leftHand:[.56,1.25,.21],rightHand:[-.56,1.25,.21],coat:.04})],
+];
+/** Weight of the four-hit phrase: eases in over the first beat of its window and out over the last. */
+function fourHitWeight(beat) {
+  const local = mod(beat, CONFIG.cycleBeats) - FOUR_HIT_WINDOW.start,
+    length = FOUR_HIT_WINDOW.end - FOUR_HIT_WINDOW.start;
+  return smooth(local) * (1 - smooth(local - length + 1));
+}
+
 function cubic(a, b, c, d, t, leftScale, rightScale) {
   const m1 = (c - a) * leftScale,
     m2 = (d - b) * rightScale;
@@ -191,8 +229,13 @@ export function blendPose(a, b, t) {
 }
 
 function bodyPhrase(beat, theme, outfit) {
-  const lyric = theme === 'lyric',
-    p = lyric ? phrase(LYRIC, beat - 144, 32) : phrase(ELECTRIC, beat + (theme === 'parade' ? 4 : 0));
+  const lyric = theme === 'lyric';
+  let p = lyric ? phrase(LYRIC, beat - 144, 32) : phrase(ELECTRIC, beat + (theme === 'parade' ? 4 : 0));
+  const fourHit = theme === 'daylight' ? fourHitWeight(beat) : 0;
+  if (fourHit > 0) {
+    const local = mod(beat, CONFIG.cycleBeats) - FOUR_HIT_WINDOW.start;
+    p = blendPose(p, phrase(FOUR_HIT, local, FOUR_HIT_WINDOW.end - FOUR_HIT_WINDOW.start), fourHit);
+  }
   // Sustained movement has its own timing; the electric outfit accents must not leak into it.
   if (lyric) {
     const breath = Math.sin((TAU * (beat - 144)) / 16);

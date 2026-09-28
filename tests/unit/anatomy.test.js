@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { AssetCache, createActor } from '../../src/character/rig.js';
 import { sampleDance, sampleWalk } from '../../src/character/pose.js';
-import { wardrobeAt } from '../../src/content/plan.js';
+import { FOUR_HITS, wardrobeAt } from '../../src/content/plan.js';
 import { CROWD, crowdPose, crowdState } from '../../src/content/crowd.js';
 import { CYCLISTS, cyclistPose, cyclistState } from '../../src/content/cyclists.js';
 
@@ -107,4 +107,25 @@ test('cyclists steer with natural elbows and imitate with the free hand', () => 
   const worst = Math.max(...samples.map(s => s.front));
   assert.ok(worst <= 0.02, `a riding elbow sits ${worst.toFixed(3)} in front of its hand line`);
   cache.dispose();
+});
+
+test('each four-hit accent lands on its beat in a finished garment and its own signature pose', () => {
+  const signatures = [
+    // press the hat: right hand at the brim
+    p => p.rightHand[1] > 1.8,
+    // chest and shoulder pop: both hands out at shoulder height
+    p => p.leftHand[0] > 0.6 && p.rightHand[0] < -0.6 && Math.abs(p.leftHand[1] - 1.43) < 0.12,
+    // turn and stand firm: the body is turned
+    p => p.yaw < -0.5,
+    // open the body: both arms wide and high
+    p => p.leftHand[0] > 0.75 && p.rightHand[0] < -0.75 && p.leftHand[1] > 1.55,
+  ];
+  for (const [i, hit] of FOUR_HITS.entries()) {
+    const wardrobe = wardrobeAt(hit);
+    assert.equal(wardrobe.outfit, ['jacket', 'sport', 'coat', 'open'][i]);
+    assert.ok(wardrobe.progress > 0.99, `garment ${i + 1} is still revealing at its accent`);
+    assert.equal(Object.values(wardrobe.accessoryWeights).filter(w => w > 0.01).length, 0, 'hands must be free');
+    const pose = sampleDance(hit, wardrobe);
+    assert.ok(signatures[i](pose), `accent ${i + 1} at beat ${hit} misses its signature pose`);
+  }
 });

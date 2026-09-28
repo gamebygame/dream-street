@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { BLOCKS, PRODUCTS, wardrobeAt, themeWeightsAt, contactsBetween } from '../../src/content/plan.js';
+import { BLOCKS, PRODUCTS, REVEAL_BEATS, wardrobeAt, themeWeightsAt, contactsBetween } from '../../src/content/plan.js';
 import { CROWD, crowdState, crowdPose } from '../../src/content/crowd.js';
 import { sampleDance, sampleWalk } from '../../src/character/pose.js';
 import { notesBetween } from '../../src/audio/score.js';
@@ -24,7 +24,7 @@ test('wardrobe reveals begin at contact, finish before the next outfit, and surv
   for (const p of PRODUCTS.filter(p => p.outfit)) {
     assert.equal(wardrobeAt(p.beat).progress, 0);
     assert.ok(wardrobeAt(p.beat + 0.15).progress > 0 && wardrobeAt(p.beat + 0.15).progress < 1);
-    assert.equal(wardrobeAt(p.beat + (p.hit ? 1.15 : 1.8) + 0.001).progress, 1);
+    assert.equal(wardrobeAt(p.beat + (p.hit ? REVEAL_BEATS.fourHit : REVEAL_BEATS.change) + 0.001).progress, 1);
   }
   assert.equal(wardrobeAt(255.999).outfit, 'open');
   assert.equal(wardrobeAt(256.001).outfit, 'open');

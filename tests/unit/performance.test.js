@@ -17,7 +17,7 @@ import { notesBetween } from '../../src/audio/score.js';
 
 test('authored content is internally valid', () => assert.equal(validatePlan(), true));
 test('the two performers share uninterrupted travel over cycle boundaries', () => {
-  for (const beat of [0, 49.65, 55.65, 64, 79.999, 80, 80.001, 240, 10_000]) {
+  for (const beat of [0, 49.4, 55.4, 64, 79.999, 80, 80.001, 240, 10_000]) {
     const s = sampleScene(beat);
     assert.equal(s.walkerAnchorS, s.reflectionAnchorS);
     assert.equal(s.travelS, beat * 0.6);
@@ -32,7 +32,7 @@ test('the office preserves the new outfit before a visible recovery at beat 64',
 });
 test('four costume contacts retain their accents in the original score', () => {
   for (const [i, p] of PRODUCTS.filter(p => p.hit).entries()) {
-    assert.ok(Math.abs(p.hit - p.beat - 0.35) < 1e-10);
+    assert.ok(Math.abs(p.hit - p.beat - CONFIG.contactLead) < 1e-10);
     assert.notEqual(wardrobeAt(p.beat - 0.001).outfit, p.outfit);
     assert.equal(wardrobeAt(p.hit).outfit, ['jacket', 'sport', 'coat', 'open'][i]);
     assert.ok(notesBetween(p.hit, p.hit + 0.001).some(n => n.stem === 'kick' && n.velocity === 1));

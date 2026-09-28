@@ -47,11 +47,11 @@ test('the visibility handler suspends audio and keeps a return to the page pause
 });
 test('costumes follow contacts, old clothes return inside the office, and seeks preserve anchors', async ({ page }) => {
   for (const [beat, outfit] of [
-    [49.64, 'coat'],
-    [49.65, 'jacket'],
-    [51.65, 'sport'],
-    [53.65, 'coat'],
-    [55.65, 'open'],
+    [49.39, 'coat'],
+    [49.4, 'jacket'],
+    [51.4, 'sport'],
+    [53.4, 'coat'],
+    [55.4, 'open'],
     [60, 'open'],
     [63.99, 'open'],
     [64, 'old'],
@@ -65,7 +65,7 @@ test('costumes follow contacts, old clothes return inside the office, and seeks 
 });
 test('displayed products really overlap the reflection at the authored contacts', async ({ page }) => {
   for (const beat of [
-    18.2, 25.1, 32.4, 39.7, 45.6, 49.65, 51.65, 53.65, 55.65, 91.1, 118.7, 146.4, 154.3, 165.1, 211.4, 242.1, 311.65,
+    18.2, 25.1, 32.4, 39.7, 45.6, 49.4, 51.4, 53.4, 55.4, 91.1, 118.7, 146.4, 154.3, 165.1, 211.4, 242.1, 311.4,
   ]) {
     await page.evaluate(b => window.__dreamStreet.seek(b), beat);
     const distance = await page.evaluate(beat => {
