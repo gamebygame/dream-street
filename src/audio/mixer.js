@@ -102,7 +102,11 @@ export class Mixer {
       // Recordings take the full-level mix, independent of the listener's volume slider.
       this.capture = context.createMediaStreamDestination();
       this.captureDelay = context.createDelay(0.5);
-      this.ceiling.connect(this.captureDelay);
+      // One decibel of headroom keeps lossy video codecs from overshooting full scale.
+      this.captureTrim = context.createGain();
+      this.captureTrim.gain.value = 0.89;
+      this.ceiling.connect(this.captureTrim);
+      this.captureTrim.connect(this.captureDelay);
       this.captureDelay.connect(this.capture);
     }
     this.reverb = context.createConvolver();
@@ -217,6 +221,7 @@ export class Mixer {
     this.stopAll();
     for (const node of [this.sum, this.glue, this.makeup, this.ceiling, this.output, this.reverb, this.delay])
       node.disconnect();
+    this.captureTrim?.disconnect();
     this.captureDelay?.disconnect();
   }
 }
