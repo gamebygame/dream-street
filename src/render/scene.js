@@ -118,11 +118,32 @@ export class ExperienceRenderer {
     this.sample = sampleScene(0);
     this.render(0, false);
   }
+  /**
+   * Debug-only close-up that keeps the production viewing angle and projection, so body mechanics
+   * can be judged at a readable size. `kind` is walker | dancer | crowd | cyclist.
+   */
+  setInspect(inspect) {
+    this.inspect = inspect ? { viewHeight: 3.6, index: 0, ...inspect } : null;
+    this.resize();
+    this.render(this.sample.beat, false);
+  }
+  aimInspection() {
+    const { kind, index } = this.inspect,
+      focus = new THREE.Vector3();
+    if (kind === 'dancer') this.dancer.root.getWorldPosition(focus);
+    else if (kind === 'crowd') this.crowd.people[index]?.actor.root.getWorldPosition(focus);
+    else if (kind === 'cyclist') this.cyclists.people[index]?.root.getWorldPosition(focus);
+    else this.walker.root.getWorldPosition(focus);
+    focus.y += 0.95;
+    this.camera.position.copy(focus).addScaledVector(this.direction, -34);
+    this.camera.lookAt(focus);
+    this.camera.updateMatrixWorld();
+  }
   resize() {
     const width = this.element.clientWidth,
       height = this.element.clientHeight,
       aspect = width / height;
-    const viewHeight = CONFIG.viewHeight * Math.max(1, 1.45 / aspect),
+    const viewHeight = this.inspect ? this.inspect.viewHeight : CONFIG.viewHeight * Math.max(1, 1.45 / aspect),
       viewWidth = viewHeight * aspect;
     this.camera.left = -viewWidth / 2;
     this.camera.right = viewWidth / 2;
@@ -182,6 +203,7 @@ export class ExperienceRenderer {
     this.dancer.applyPose(sampleDance(beat, this.sample.wardrobe));
     this.crowd.update(beat, this.sample.wardrobe);
     this.cyclists.update(beat, this.sample.wardrobe);
+    if (this.inspect) this.aimInspection();
     this.renderer.info.reset();
     this.renderer.setRenderTarget(this.target);
     this.renderer.setClearColor(0, 0);

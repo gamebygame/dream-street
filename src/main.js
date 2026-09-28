@@ -211,8 +211,15 @@ try {
       (transport.status === 'running' ? pause() : play()).catch(showError);
     }
   });
-  const debug = new URLSearchParams(location.search).has('debug');
+  const params = new URLSearchParams(location.search),
+    debug = params.has('debug');
   $('#debug').hidden = !debug;
+  if (debug && params.get('inspect'))
+    experience.setInspect({
+      kind: params.get('inspect'),
+      index: Number(params.get('index') ?? 0),
+      viewHeight: Number(params.get('zoom') ?? 3.6),
+    });
   document
     .querySelectorAll('[data-beat]')
     .forEach(button => button.addEventListener('click', () => seek(Number(button.dataset.beat)).catch(showError)));
