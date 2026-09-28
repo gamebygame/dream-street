@@ -65,28 +65,45 @@ test('four musical chapters share the street windows, and the flower chapter is 
   assert.ok(tender.filter(n => n.inst === 'kick').every(n => n.params?.tone === 'soft'));
   assert.ok(notesBetween(212, 248).some(n => n.inst === 'kick' && n.params?.tone === 'march'));
 });
-test('36 varied identities arrive gradually, share travel, and all leave at the junction', () => {
+test('36 varied passers-by are street life first, join as he nears, share travel, and all leave at the junction', () => {
   assert.equal(CROWD.length, 36);
   assert.equal(new Set(CROWD.map(p => p.id)).size, 36);
   assert.ok(new Set(CROWD.map(p => p.skinColor)).size >= 5);
   assert.ok(CROWD.some(p => p.child) && CROWD.some(p => p.elder));
+  // Browsing, waiting at a corner, chatting, crossing from the side street and walking the other way.
+  assert.equal(new Set(CROWD.map(p => p.activity)).size, 5);
   const count = b => CROWD.filter(p => crowdState(p, b).visible).length;
   assert.equal(count(0), 0);
-  assert.ok(count(22) > 0 && count(22) < 36);
-  assert.equal(count(96), 36);
+  const street = CROWD.map(p => crowdState(p, 60)).filter(s => s.visible);
+  assert.ok(street.length > 0 && street.length < 36);
+  assert.ok(street.every(s => ['browse', 'wait', 'chat', 'cross', 'oncoming'].includes(s.phase)));
+  assert.equal(count(110), 36);
   assert.equal(count(127), 36);
   assert.equal(count(170), 0);
   assert.equal(CROWD.filter(p => p.wave).length, 4);
   for (const p of CROWD) {
-    const a = crowdState(p, 108),
-      b = crowdState(p, 115);
+    // Nobody is conjured beside him: each is first seen at a distance, doing their own thing.
+    let first = 0;
+    while (!crowdState(p, first).visible) first += 0.25;
+    const seen = crowdState(p, first);
+    assert.equal(seen.phase, p.activity, p.id);
+    assert.ok(Math.hypot(seen.x, seen.z) > 8, `${p.id} appears ${Math.hypot(seen.x, seen.z).toFixed(1)} away`);
+    // They set off only once he is near: people walking toward him turn about four seconds before they would meet.
+    const setOff = crowdState(p, p.path.join);
+    assert.ok(Math.hypot(setOff.x, setOff.z) < 14, `${p.id} sets off too early`);
+    assert.ok(p.path.end <= 110, `${p.id} is still joining at ${p.path.end}`);
+    const a = crowdState(p, 110),
+      b = crowdState(p, 116);
     assert.equal(a.x, b.x);
     assert.equal(a.z, b.z);
     assert.ok(Math.hypot(a.x, a.z) > 1.5);
-    for (const beat of [p.start, 96, p.leave, 147]) {
+    for (const beat of [p.path.join, p.path.end, p.leave, 147]) {
       const left = crowdState(p, beat - 1e-5),
         right = crowdState(p, beat + 1e-5);
-      if (left.visible && right.visible) assert.ok(Math.hypot(left.x - right.x, left.z - right.z) < 0.001);
+      if (left.visible && right.visible) {
+        assert.ok(Math.hypot(left.x - right.x, left.z - right.z) < 0.001, `${p.id} jumps at ${beat}`);
+        assert.ok(Math.abs(left.distance - right.distance) < 0.001, `${p.id} feet jump at ${beat}`);
+      }
     }
   }
 });

@@ -84,8 +84,12 @@ test('walking paths have bounded speed and preserve separation through the junct
     for (const [i, a] of people.entries()) {
       const b = crowdState(CROWD[i], beat + 0.001);
       if (a.visible && b.visible) {
+        // Ground speed: the walker's own travel is added back to the relative motion.
         const speed = Math.hypot(b.x - a.x, b.z - a.z + 0.0006) / 0.001;
-        assert.ok(speed >= 0.599 && speed < 1.1, `${beat} ${i} ${speed}`);
+        // Nobody hurries faster than a brisk walk to catch up.
+        assert.ok(speed < 0.8, `${beat} ${i} ${speed}`);
+        // Standing still means standing still: planted feet, no drift.
+        if (a.stand === 1) assert.ok(speed < 1e-6 && b.distance === a.distance, `${beat} ${i} drifts`);
       }
       for (let j = i + 1; j < people.length; j++) {
         const b = people[j];
@@ -93,6 +97,14 @@ test('walking paths have bounded speed and preserve separation through the junct
       }
     }
   }
+});
+test('people browsing the windows stand back from the glass wherever the reflection is dancing', () => {
+  // A head closer than about 1.1 to the glass covers the reflection's legs from this camera.
+  for (let beat = 30; beat < 128; beat += 0.25)
+    for (const p of CROWD) {
+      const s = crowdState(p, beat);
+      if (s.visible && s.z > -2.5 && s.z < 1.5) assert.ok(s.x < 8.5, `${p.id} covers the reflection at ${beat}`);
+    }
 });
 test('a passer greeting drives a delayed response from the protagonist and settles back into walking', () => {
   for (const cue of FAREWELLS) {

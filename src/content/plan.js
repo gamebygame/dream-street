@@ -121,7 +121,7 @@ export function themeWeightsAt(beat) {
 }
 export function crowdPhaseAt(beat) {
   const b = mod(beat, CONFIG.cycleBeats);
-  return b < 64 || b >= 168 ? 'alone' : b < 108 ? 'arrive' : b < 130 ? 'travel' : 'depart';
+  return b < 64 || b >= 168 ? 'alone' : b < 110 ? 'arrive' : b < 130 ? 'travel' : 'depart';
 }
 export function phaseAt(beat) {
   const b = mod(beat, CONFIG.cycleBeats),

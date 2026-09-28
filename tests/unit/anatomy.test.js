@@ -29,7 +29,13 @@ function arms(actor) {
       toElbow = elbow.clone().sub(shoulder);
     const offLine = toElbow.clone().addScaledVector(line, -toElbow.dot(line));
     const lift = toElbow.normalize().angleTo(new THREE.Vector3(0, -1, 0));
-    return { front: offLine.dot(forward), handBelowShoulder: shoulder.y - hand.y, lift };
+    // Raised forward or out to the side; an arm drawn back behind the body (hands clasped behind) is not raised.
+    const back = Math.min(0, toElbow.dot(forward)),
+      raise = toElbow
+        .clone()
+        .addScaledVector(forward, -back)
+        .angleTo(new THREE.Vector3(0, -1, 0));
+    return { front: offLine.dot(forward), handBelowShoulder: shoulder.y - hand.y, lift, raise };
   });
 }
 
@@ -71,11 +77,12 @@ test('walking arms hang and swing low with elbows behind the body line', () => {
   cache.dispose();
 });
 
-test('passers-by keep natural elbows while arriving, imitating and waving goodbye', () => {
+test('passers-by keep natural elbows while standing about, joining, imitating and waving goodbye', () => {
   const cache = new AssetCache(),
     walking = [],
     imitating = [];
-  for (const index of [0, 7, 13, 22, 35]) {
+  // Every activity and every standing hold: walking the other way, crossing, browsing, waiting and chatting.
+  for (const index of [0, 2, 7, 11, 13, 14, 19, 22, 31, 35]) {
     const person = CROWD[index],
       actor = createActor(cache, { ...person, outfitIds: [person.outfit], accessories: false });
     for (let beat = 20; beat < 170; beat += 0.5) {
@@ -87,7 +94,7 @@ test('passers-by keep natural elbows while arriving, imitating and waving goodby
   }
   assertNoZombieReach('walking passers-by', walking);
   assertNoZombieReach('imitating passers-by', imitating);
-  for (const s of walking) assert.ok(s.lift < (30 * Math.PI) / 180, 'a walking passer-by lifted an arm');
+  for (const s of walking) assert.ok(s.raise < (30 * Math.PI) / 180, 'a passer-by lifted an arm before joining');
   cache.dispose();
 });
 

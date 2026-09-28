@@ -22,6 +22,16 @@ const SHOTS = [
   { kind: 'cyclist', index: 0, beats: [104] },
   { kind: 'cyclist', index: 1, beats: [220] },
   { kind: 'scene', beats: [10, 54, 104.3, 150] },
+  // Street life before the crowd forms: someone at a window, at a corner, chatting, walking the other way and
+  // crossing from the side street, each until they have joined; `zoom` widens the close-up to show their company.
+  { kind: 'crowd', index: 16, zoom: 7, beats: [70, 88, 92, 96, 100, 104] },
+  { kind: 'crowd', index: 14, zoom: 7, beats: [60, 66, 70, 74, 78] },
+  { kind: 'crowd', index: 19, zoom: 7, beats: [84, 90, 94, 98, 104] },
+  { kind: 'crowd', index: 1, zoom: 7, beats: [74, 80, 84, 88, 92] },
+  { kind: 'crowd', index: 2, zoom: 7, beats: [62, 68, 72, 76, 80] },
+  { kind: 'cyclist', index: 0, zoom: 7, beats: [66, 72, 75, 78, 84] },
+  { kind: 'cyclist', index: 1, zoom: 7, beats: [184, 190, 193, 197, 204] },
+  { kind: 'scene', beats: [60, 66, 72, 78, 84, 90, 96, 102, 108] },
 ];
 
 await mkdir(destination, { recursive: true });
@@ -35,13 +45,15 @@ try {
   await page.addStyleTag({ content: '#entrance,#debug,.masthead,.controls,#official-shell{display:none!important}' });
   for (const shot of SHOTS) {
     await page.evaluate(
-      ({ kind, index }) =>
-        window.__dreamStreet.renderer.setInspect(kind === 'scene' ? null : { kind, index: index ?? 0 }),
+      ({ kind, index, zoom }) =>
+        window.__dreamStreet.renderer.setInspect(
+          kind === 'scene' ? null : { kind, index: index ?? 0, ...(zoom ? { viewHeight: zoom } : {}) },
+        ),
       shot,
     );
     for (const beat of shot.beats) {
       await page.evaluate(b => window.__dreamStreet.seek(b), beat);
-      const name = `${shot.kind}${shot.index === undefined ? '' : '-' + shot.index}-${beat}.png`;
+      const name = `${shot.kind}${shot.index === undefined ? '' : '-' + shot.index}${shot.zoom ? '-wide' : ''}-${beat}.png`;
       await page.locator('#stage canvas').screenshot({ path: resolve(destination, name) });
     }
   }

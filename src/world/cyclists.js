@@ -96,6 +96,7 @@ export class Cyclists {
       rider.root.visible = state.visible;
       if (!state.visible) continue;
       rider.root.position.set(state.x, 0, state.z);
+      rider.root.rotation.y = state.yaw;
       for (const wheel of rider.wheels) wheel.rotation.x = state.distance / 0.33;
       const phase = (state.distance / 1.9) * Math.PI * 2;
       for (const { pedal, side } of rider.cranks) {

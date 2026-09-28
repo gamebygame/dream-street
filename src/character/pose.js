@@ -100,6 +100,50 @@ export function sampleWalk(beat, { social = true } = {}) {
   return p;
 }
 
+/** Everyday holds for someone standing still: 0 relaxed, 1 hands behind the back, 2 in pockets, 3 one hand in a pocket. */
+export const STAND_STYLES = 4;
+/**
+ * Standing on the pavement before the dance reaches them: weight settled over one foot and shifting slowly, the
+ * head wandering. `seed` desynchronises neighbours. Arms hang on the walk's joint arcs or rest in a pocket, never
+ * lifted.
+ */
+export function sampleStand(beat, style = 0, seed = 0) {
+  const shift = Math.sin((TAU * beat) / 11 + seed),
+    glance = Math.sin((TAU * beat) / 7.3 + seed * 1.7),
+    hipY = 0.9 - 0.006 * Math.abs(shift),
+    hang = side => [0.03 + 0.02 * shift * side, 0.17, side * 0.1];
+  const p = {
+    ...base(0),
+    hip: [0.035 * shift, hipY, 0],
+    pelvis: 0.05 * shift,
+    chest: [0.03, -0.035 * shift, -0.02 * shift],
+    head: [0.03, 0.2 * glance, 0.025 * shift],
+    leftFoot: [0.17, 0.095, 0.05],
+    rightFoot: [-0.17, 0.095, -0.03],
+    leftArmSwing: hang(1),
+    rightArmSwing: hang(-1),
+    leftWrist: [0, 0, 0.05],
+    rightWrist: [0, 0, -0.05],
+    coat: 0.01 * shift,
+  };
+  p.leftHand = swingHand(hipY, 1, p.leftArmSwing);
+  p.rightHand = swingHand(hipY, -1, p.rightArmSwing);
+  if (style === 1) {
+    p.leftHand = [0.08, hipY - 0.05, -0.17];
+    p.rightHand = [-0.08, hipY - 0.04, -0.17];
+    p.leftArmWalk = 0;
+    p.rightArmWalk = 0;
+  } else if (style === 2 || style === 3) {
+    p.rightHand = [-0.21, hipY - 0.07, 0.07];
+    p.rightArmWalk = 0;
+    if (style === 2) {
+      p.leftHand = [0.21, hipY - 0.07, 0.07];
+      p.leftArmWalk = 0;
+    }
+  }
+  return p;
+}
+
 const pose = overrides => ({
   ...base(0),
   // Dance keyframes start from a neutral stance rather than from the walk's step phase.

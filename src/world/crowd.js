@@ -64,14 +64,14 @@ export class Crowd {
       if (!state.visible) continue;
       this.screenPoint.set(state.x, 1, state.z).project(this.camera);
       if (Math.abs(this.screenPoint.x) < 1 && Math.abs(this.screenPoint.y) < 1) this.visibleCount++;
-      actor.root.position.set(state.x, 0, state.z);
+      actor.root.position.set(state.x, state.y, state.z);
       actor.applyPose(crowdPose(person, beat, state, wardrobe));
       for (const { object, batch, color } of parts) {
         const index = batch.mesh.count++;
         batch.mesh.setMatrixAt(index, object.matrixWorld);
         batch.mesh.setColorAt(index, color);
       }
-      this.shadowTransform.position.set(state.x, 0.015, state.z);
+      this.shadowTransform.position.set(state.x, state.y + 0.015, state.z);
       this.shadowTransform.rotation.set(-Math.PI / 2, 0, 0);
       this.shadowTransform.scale.set(0.37 * person.height, 0.29 * person.height, 1);
       this.shadowTransform.updateMatrix();
