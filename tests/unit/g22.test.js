@@ -7,10 +7,11 @@ import { wardrobeAt } from '../../src/content/plan.js';
 import { CYCLISTS, cyclistPose, cyclistState } from '../../src/content/cyclists.js';
 import { ReferenceMusic, referenceWindowAt } from '../../src/audio/reference.js';
 
-test('walking elbows stay flexed through both swing extremes and actual joints remain continuous', () => {
+test('walking elbows flex through a natural range and actual joints remain continuous', () => {
   const cache = new AssetCache(),
     actor = createActor(cache),
-    previous = {};
+    previous = {},
+    range = { left: [Infinity, -Infinity], right: [Infinity, -Infinity] };
   for (let beat = 0; beat < 4; beat += 0.01) {
     actor.applyPose(sampleWalk(beat, { social: false }));
     for (const name of ['left', 'right']) {
@@ -19,11 +20,16 @@ test('walking elbows stay flexed through both swing extremes and actual joints r
         b = arm.lower.getWorldPosition(new THREE.Vector3()),
         c = arm.end.getWorldPosition(new THREE.Vector3());
       const flex = Math.PI - a.sub(b).angleTo(c.clone().sub(b));
-      assert.ok(flex > 0.14 && flex < 0.34, `${beat}: ${flex}`);
-      if (previous[name]) assert.ok(c.distanceTo(previous[name]) < 0.009);
+      // Never locked straight, never a raised forearm: about 15 to 45 degrees while walking.
+      assert.ok(flex > 0.24 && flex < 0.8, `${beat}: ${flex}`);
+      range[name] = [Math.min(range[name][0], flex), Math.max(range[name][1], flex)];
+      // A pose jump moves the hand several centimetres; the fullest natural swing moves it about 0.009 here.
+      if (previous[name]) assert.ok(c.distanceTo(previous[name]) < 0.012);
       previous[name] = c;
     }
   }
+  // Ordinary gait shows roughly 30 degrees of elbow travel; a nearly rigid arm reads as stiff.
+  for (const [low, high] of Object.values(range)) assert.ok(high - low > 0.42, `${low}..${high}`);
   cache.dispose();
 });
 

@@ -123,8 +123,11 @@ export function crowdLayout(beat) {
 export function crowdPose(person, beat, state = crowdState(person, beat), wardrobe = wardrobeAt(beat)) {
   const footBeat = state.distance / 0.6 + person.index * 0.13;
   const walk = sampleWalk(footBeat, { social: false }),
-    dancer = sampleDance(beat - person.delay, wardrobe);
+    dancer = sampleDance(beat - person.delay, wardrobe, { props: false });
   const p = blendPose(walk, dancer, state.participation * (0.62 + 0.32 * person.skill));
+  // Whatever share of the arm stays in the walk keeps the walk's own swing, not the dancer's neutral angles.
+  p.leftArmSwing = walk.leftArmSwing;
+  p.rightArmSwing = walk.rightArmSwing;
   p.leftFoot = walkFoot(footBeat, 1);
   p.rightFoot = walkFoot(footBeat, -1);
   p.leftFoot[2] /= person.height;

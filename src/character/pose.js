@@ -7,6 +7,17 @@ const ease = t => t * t * (3 - 2 * t),
   mix = (a, b, t) => a + (b - a) * t;
 const vMix = (a, b, t) => a.map((v, i) => mix(v, b[i], t));
 
+// Elbows hinge backward. Arm IK pulls each elbow behind, outside and below the shoulder-hand line; a pole in
+// front of the body (the knee's direction) lifts the upper arm forward into a zombie-like reach.
+export const ELBOW_POLES = Object.freeze({
+  left: Object.freeze([0.35, -0.3, -1]),
+  right: Object.freeze([-0.35, -0.3, -1]),
+});
+const SHOULDER_X = 0.285,
+  SHOULDER_ABOVE_HIP = 0.43,
+  UPPER_ARM = 0.355,
+  FOREARM = 0.32;
+
 export function walkFoot(beat, side) {
   const p = mod(beat + (side === 1 ? 0 : 1), 2),
     stride = CONFIG.distancePerBeat / CONFIG.actorScale;
@@ -14,27 +25,53 @@ export function walkFoot(beat, side) {
   const u = p - 1;
   return [side * 0.19, 0.095 + 0.1 * Math.sin(Math.PI * u), stride * (ease(u) - 0.5)];
 }
+/**
+ * Shoulder flexion (+ swings back), elbow flexion and abduction for a confident everyday walk. Each arm swings
+ * opposite its own leg with a slight lag and bends most at the front of the swing. Gait studies measure roughly
+ * 30 degrees of elbow range in ordinary walking; this swing covers 15-45 degrees of elbow and about 39 degrees of
+ * shoulder travel.
+ */
+function armSwing(beat, side) {
+  const phase = Math.PI * beat + (side === 1 ? 0 : Math.PI);
+  return [0.34 * Math.cos(phase - 0.12), 0.26 + 0.26 * (1 - Math.cos(phase - 0.36)), side * 0.12];
+}
+/** Forward kinematics of armSwing, used as the IK target so walking blends continuously into gestures. */
+function swingHand(hipY, side, [flex, bend, spread]) {
+  const sa = Math.sin(spread),
+    ca = Math.cos(spread),
+    sf = Math.sin(flex),
+    cf = Math.cos(flex),
+    sb = Math.sin(bend),
+    cb = Math.cos(bend);
+  return [
+    side * SHOULDER_X + (UPPER_ARM + FOREARM * cb) * sa,
+    hipY + SHOULDER_ABOVE_HIP - (UPPER_ARM + FOREARM * cb) * ca * cf - FOREARM * sb * sf,
+    -(UPPER_ARM + FOREARM * cb) * ca * sf + FOREARM * sb * cf,
+  ];
+}
 function base(beat) {
-  const s = Math.cos(Math.PI * beat);
+  const s = Math.cos(Math.PI * beat),
+    hipY = 0.91 - 0.018 * Math.cos(TAU * beat),
+    leftArmSwing = armSwing(beat, 1),
+    rightArmSwing = armSwing(beat, -1);
   return {
-    hip: [0.012 * Math.sin(Math.PI * beat), 0.91 + 0.008 * Math.cos(TAU * beat), 0],
+    // The body is lowest at each heel strike and highest over the planted foot.
+    hip: [0.012 * Math.sin(Math.PI * beat), hipY, 0],
     yaw: 0,
-    chest: [0.018, 0.026 * s, 0.008 * Math.sin(Math.PI * beat)],
-    head: [-0.025, 0, 0],
-    leftHand: [0.29, 0.715 + 0.035 * s, 0.04 - 0.18 * s],
-    rightHand: [-0.29, 0.715 - 0.035 * s, 0.04 + 0.18 * s],
+    // The pelvis turns with the forward leg and the chest counter-rotates; the head stays level and forward.
+    pelvis: -0.05 * s,
+    chest: [0.045, 0.09 * s, 0.008 * Math.sin(Math.PI * beat)],
+    head: [-0.045, -0.04 * s, 0],
+    leftHand: swingHand(hipY, 1, leftArmSwing),
+    rightHand: swingHand(hipY, -1, rightArmSwing),
     leftFoot: walkFoot(beat, 1),
     rightFoot: walkFoot(beat, -1),
     leftArmWalk: 1,
     rightArmWalk: 1,
-    leftElbowPole: [0.25, -0.12, 1],
-    rightElbowPole: [-0.25, -0.12, 1],
-    leftArmSwing: [0.25 * Math.cos(Math.PI * beat - 0.12), 0.16 + 0.08 * (1 - Math.cos(Math.PI * beat - 0.36)), 0.035],
-    rightArmSwing: [
-      -0.25 * Math.cos(Math.PI * beat - 0.12),
-      0.16 + 0.08 * (1 + Math.cos(Math.PI * beat - 0.36)),
-      -0.035,
-    ],
+    leftElbowPole: [...ELBOW_POLES.left],
+    rightElbowPole: [...ELBOW_POLES.right],
+    leftArmSwing,
+    rightArmSwing,
     leftWrist: [0.04 * Math.sin(Math.PI * beat - 0.5), 0, 0.04],
     rightWrist: [-0.04 * Math.sin(Math.PI * beat - 0.5), 0, -0.04],
     leftAnkle: [0, 0, 0],
@@ -48,7 +85,7 @@ export function sampleWalk(beat, { social = true } = {}) {
   const p = base(beat);
   if (social) {
     const cue = greetingAt(beat);
-    p.head[1] = cue.look;
+    p.head[1] += cue.look;
     p.chest[1] += cue.look * 0.1;
     p.head[0] += 0.1 * Math.abs(cue.reply);
     if (cue.reply < 0) {
@@ -65,6 +102,10 @@ export function sampleWalk(beat, { social = true } = {}) {
 
 const pose = overrides => ({
   ...base(0),
+  // Dance keyframes start from a neutral stance rather than from the walk's step phase.
+  pelvis: 0,
+  chest: [0.018, 0.026, 0],
+  head: [-0.025, 0, 0],
   leftArmWalk: 0,
   rightArmWalk: 0,
   hip: [0, 0.9, 0],
@@ -154,8 +195,6 @@ function bodyPhrase(beat, theme, outfit) {
     p = lyric ? phrase(LYRIC, beat - 144, 32) : phrase(ELECTRIC, beat + (theme === 'parade' ? 4 : 0));
   // Sustained movement has its own timing; the electric outfit accents must not leak into it.
   if (lyric) {
-    p.leftElbowPole = [0.2, -1, 0.15];
-    p.rightElbowPole = [-0.2, -1, 0.15];
     const breath = Math.sin((TAU * (beat - 144)) / 16);
     p.hip[1] += 0.003 * breath;
     p.chest[0] += 0.008 * breath;
@@ -303,7 +342,11 @@ function propPhrase(id, beat, age, basePose, tender) {
   return p;
 }
 
-export function sampleDance(beat, state = wardrobeAt(beat)) {
+/**
+ * The reflection's dance. Passers-by and cyclists imitate it with `props: false`: they hold nothing, so they must
+ * not mime the reflection's bouquet, cane or record gestures.
+ */
+export function sampleDance(beat, state = wardrobeAt(beat), { props = true } = {}) {
   const themes = themeWeightsAt(beat);
   let p,
     total = 0;
@@ -315,6 +358,7 @@ export function sampleDance(beat, state = wardrobeAt(beat)) {
       p = p ? blendPose(p, q, w / (total + w)) : q;
       total += w;
     }
+  if (!props) return p;
   const tender = themes.find(t => t.id === 'lyric')?.weight || 0;
   for (const [id, weight] of Object.entries(state.accessoryWeights))
     if (weight > 0) p = blendPose(p, propPhrase(id, beat, beat - state.accessoryStarts[id], p, tender), weight);

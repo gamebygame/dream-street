@@ -45,7 +45,11 @@ export function cyclistState(person, beat) {
   };
 }
 export function cyclistPose(person, beat, state, wardrobe) {
-  const p = blendPose(sampleWalk(beat, { social: false }), sampleDance(beat, wardrobe), state.participation * 0.72);
+  const p = blendPose(
+    sampleWalk(beat, { social: false }),
+    sampleDance(beat, wardrobe, { props: false }),
+    state.participation * 0.72,
+  );
   const phase = (state.distance / 1.9) * Math.PI * 2;
   p.leftArmWalk = 0;
   p.rightArmWalk = 0;

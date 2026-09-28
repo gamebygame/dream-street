@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { CONFIG, OUTFITS } from '../config.js';
 import { ACCESSORIES } from '../content/plan.js';
 import { ClothLight } from './cloth-light.js';
+import { ELBOW_POLES } from './pose.js';
 
 export class AssetCache {
   constructor() {
@@ -694,7 +695,7 @@ export function createActor(
   function applyPose(p) {
     poseRoot.rotation.y = p.yaw;
     hip.position.set(...p.hip);
-    hip.rotation.set(0, -0.05, 0);
+    hip.rotation.set(0, -0.05 + (p.pelvis || 0), 0);
     spine.rotation.set(p.chest[0] * 0.4, p.chest[1] * 0.4, p.chest[2] * 0.4);
     chest.rotation.set(p.chest[0] * 0.6, p.chest[1] * 0.6, p.chest[2] * 0.6);
     torsoPivot.rotation.set(p.chest[0] * 0.88, p.chest[1] * 0.88, p.chest[2] * 0.88);
@@ -702,8 +703,8 @@ export function createActor(
     root.updateMatrixWorld(true);
     solve(rig.leftLeg, p.leftFoot, [0, 0, 1]);
     solve(rig.rightLeg, p.rightFoot, [0, 0, 1]);
-    solve(rig.leftArm, p.leftHand, p.leftElbowPole || [0.25, -0.12, 1]);
-    solve(rig.rightArm, p.rightHand, p.rightElbowPole || [-0.25, -0.12, 1]);
+    solve(rig.leftArm, p.leftHand, p.leftElbowPole || ELBOW_POLES.left);
+    solve(rig.rightArm, p.rightHand, p.rightElbowPole || ELBOW_POLES.right);
     // A relaxed pendulum uses joint arcs, avoiding the straight-elbow singularity of hand IK.
     // Gesture weights return smoothly to IK for greetings, dancing and the bicycle handlebar.
     for (const name of ['left', 'right']) {
