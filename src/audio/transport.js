@@ -1,7 +1,9 @@
-import { CONFIG } from '../config.js';
+import { CONFIG, SECONDS_PER_BEAT, beatsFromSeconds } from '../config.js';
 import { notesBetween, activeNotesAt } from './score.js';
-import { Voices } from './voices.js';
+import { Mixer, measureLatency } from './mixer.js';
+import { playNote } from './instruments.js';
 
+/** Maps the AudioContext's output position to performance time, so the picture follows what is heard. */
 export function outputTime(context, now) {
   if (context.state === 'running' && typeof context.getOutputTimestamp === 'function') {
     const stamp = context.getOutputTimestamp();
@@ -13,6 +15,10 @@ export function outputTime(context, now) {
   return { time: context.currentTime, mode: 'currentTime-fallback' };
 }
 
+/**
+ * The single clock. The score is scheduled ahead on AudioContext time; the picture samples the beat that is
+ * audible now. `sample()` only observes; `tick()`, called once per frame, is the only place the beat is committed.
+ */
 export class Transport {
   constructor({
     contextFactory,
@@ -21,23 +27,29 @@ export class Transport {
     setTimer = (fn, ms) => globalThis.setInterval(fn, ms),
     clearTimer = id => globalThis.clearInterval(id),
     wait = ms => new Promise(resolve => setTimeout(resolve, ms)),
-    voicesFactory = ctx => new Voices(ctx),
+    mixerFactory = context => new Mixer(context),
+    play = playNote,
+    latency = rate => (typeof OfflineAudioContext === 'function' ? measureLatency(rate) : 0),
   } = {}) {
     this.contextFactory = contextFactory || (() => new AudioContext({ latencyHint: 'interactive' }));
     this.now = now;
     this.setTimer = setTimer;
     this.clearTimer = clearTimer;
     this.wait = wait;
-    this.voicesFactory = voicesFactory;
+    this.mixerFactory = mixerFactory;
+    this.play = play;
+    this.measureLatency = latency;
+    this.latency = 0;
     this.status = 'idle';
     this.heldBeat = 0;
     this.lastBeat = 0;
     this.generation = 0;
     this.timer = null;
     this.context = null;
-    this.voices = null;
-    this.volume = 0.45;
+    this.mixer = null;
+    this.volume = CONFIG.defaultVolume;
     this.muted = false;
+    this.scoreAudible = true;
     this.syncMode = 'not-started';
     this.error = null;
     this.reference = reference;
@@ -45,38 +57,30 @@ export class Transport {
   async ensureAudio() {
     if (this.context) return;
     this.context = this.contextFactory();
-    this.voices = this.voicesFactory(this.context);
-    if (!this.reference) this.voices.prewarm(notesBetween(0, CONFIG.cycleBeats));
-    this.voices.setVolume(this.volume);
-    this.voices.setMuted(this.muted);
+    this.mixer = this.mixerFactory(this.context);
+    this.mixer.setVolume(this.volume);
+    this.mixer.setMuted(this.muted);
+    this.mixer.setAudible(this.scoreAudible);
+    this.latency = await this.measureLatency(this.context.sampleRate);
     this.context.addEventListener?.('statechange', () => {
       if (this.status === 'running' && this.context.state !== 'running') this.pause();
     });
   }
-  sample() {
-    let beat = this.heldBeat;
+  sample(now = this.now()) {
+    if (this.status !== 'running')
+      return { beat: this.heldBeat, travelS: this.heldBeat * CONFIG.distancePerBeat, status: this.status };
+    const stamp = outputTime(this.context, now);
+    const beat = Math.max(this.lastBeat, this.heldBeat + beatsFromSeconds(Math.max(0, stamp.time - this.epoch)));
+    return { beat, travelS: beat * CONFIG.distancePerBeat, status: this.status, clock: stamp.mode };
+  }
+  tick(now = this.now()) {
+    const frame = this.sample(now);
     if (this.status === 'running') {
-      const stamp = outputTime(this.context, this.now());
-      this.syncMode = stamp.mode;
-      beat = Math.max(this.lastBeat, this.heldBeat + Math.max(0, stamp.time - this.epoch) * 2);
-      const source = this.reference?.sample();
-      if (source) {
-        if (source.seek) {
-          this.heldBeat = source.beat;
-          this.lastBeat = source.beat;
-          this.cursor = source.beat;
-          this.voices.stopAll();
-          for (const note of activeNotesAt(source.beat))
-            if (this.reference.allows(note))
-              this.voices.play(note, this.context.currentTime, (source.beat - note.beat) / 2);
-        }
-        beat = Math.max(this.lastBeat, source.beat);
-        this.epoch = stamp.time - (beat - this.heldBeat) / 2;
-        this.syncMode = 'youtube-player-estimate';
-      }
-      this.lastBeat = beat;
+      // Output-timestamp jitter must never move the street backward.
+      this.lastBeat = frame.beat;
+      this.syncMode = frame.clock;
     }
-    return { beat, travelS: beat * CONFIG.distancePerBeat, status: this.status };
+    return frame;
   }
   async resume() {
     if (this.status === 'running' || this.status === 'starting') return;
@@ -95,16 +99,12 @@ export class Transport {
       if (this.context.state !== 'running') throw new Error('浏览器尚未允许声音播放。请再次点击继续。');
       this.epoch = this.context.currentTime + 0.1;
       this.lastBeat = this.heldBeat;
-      await this.reference?.resume(this.heldBeat, this.context, this.epoch);
-      if (generation !== this.generation) {
-        this.reference?.pause();
-        return;
-      }
       this.cursor = this.heldBeat;
-      this.voices.stopAll();
-      this.voices.setPaused(false);
+      this.mixer.stopAll();
+      this.mixer.setPaused(false);
       for (const note of activeNotesAt(this.heldBeat))
-        if (this.reference?.allows(note) ?? true) this.voices.play(note, this.epoch, (this.heldBeat - note.beat) / 2);
+        this.play(this.mixer, note, this.epoch - this.latency, (this.heldBeat - note.beat) * SECONDS_PER_BEAT);
+      this.reference?.resume();
       this.status = 'running';
       this.schedule();
       this.timer = this.setTimer(() => {
@@ -118,22 +118,14 @@ export class Transport {
   }
   schedule() {
     if (this.status !== 'running') return;
-    const beat = this.sample().beat;
-    this.reference?.update(beat);
-    this.voices.setPaused(Boolean(this.reference?.waiting));
-    if (this.reference?.waiting) return;
-    const now = this.context.currentTime;
-    const horizon = this.heldBeat + (now + CONFIG.audioLookahead - this.epoch) * 2;
+    const now = this.context.currentTime,
+      horizon = this.heldBeat + beatsFromSeconds(now + CONFIG.audioLookahead - this.epoch);
     if (horizon <= this.cursor) return;
-    if (this.reference && !this.reference.allows()) {
-      this.cursor = horizon;
-      return;
-    }
     for (const note of notesBetween(this.cursor, horizon)) {
-      if (this.reference && !this.reference.allows(note)) continue;
-      const scheduled = this.epoch + (note.beat - this.heldBeat) / 2;
-      const offset = Math.max(0, now - scheduled);
-      if (offset < note.duration / 2) this.voices.play(note, Math.max(now, scheduled), offset);
+      // Sent early by the mix chain's own delay, so the note is heard on the beat the picture shows.
+      const scheduled = this.epoch + (note.beat - this.heldBeat) * SECONDS_PER_BEAT - this.latency;
+      // A note that is already audibly late is dropped rather than smeared onto the wrong beat.
+      if (now - scheduled < 0.03) this.play(this.mixer, note, Math.max(now, scheduled));
     }
     this.cursor = horizon;
   }
@@ -143,7 +135,7 @@ export class Transport {
       this.generation++;
       return this.pausePromise;
     }
-    this.heldBeat = this.sample().beat;
+    this.heldBeat = this.tick().beat;
     this.lastBeat = this.heldBeat;
     this.status = 'paused';
     this.generation++;
@@ -153,18 +145,18 @@ export class Transport {
       this.timer = null;
     }
     if (this.context?.state === 'running') {
-      this.voices.setPaused(true);
+      this.mixer.setPaused(true);
       this.pausePromise = (async () => {
         // Freeze the logical beat immediately, but let the output release before suspension.
         await this.wait(90);
-        this.voices.stopAll();
+        this.mixer.stopAll();
         await this.context.suspend();
       })().finally(() => {
         this.pausePromise = null;
       });
       return this.pausePromise;
     }
-    this.voices?.stopAll();
+    this.mixer?.stopAll();
   }
   async seek(beat) {
     const running = this.status === 'running';
@@ -175,22 +167,28 @@ export class Transport {
   }
   setVolume(value) {
     this.volume = Math.max(0, Math.min(1, value));
-    this.voices?.setVolume(this.volume);
+    this.mixer?.setVolume(this.volume);
     this.reference?.setVolume(this.volume);
   }
   setMuted(value) {
     this.muted = Boolean(value);
-    this.voices?.setMuted(this.muted);
+    this.mixer?.setMuted(this.muted);
     this.reference?.setMuted(this.muted);
+  }
+  /** The score keeps scheduling while silenced, so switching back from a comparison lands on the same beat. */
+  setScoreAudible(value) {
+    this.scoreAudible = Boolean(value);
+    this.mixer?.setAudible(this.scoreAudible);
   }
   diagnostics() {
     return {
       ...this.sample(),
       syncMode: this.syncMode,
-      music: this.reference?.diagnostics() ?? { mode: 'original' },
+      music: this.reference?.diagnostics() ?? { mode: 'score' },
+      scoreAudible: this.scoreAudible,
       contextState: this.context?.state || 'not-created',
-      activeVoices: this.voices?.active.size || 0,
-      cachedBuffers: this.voices?.cache.size || 0,
+      activeVoices: this.mixer?.active.size || 0,
+      latencyMs: +(this.latency * 1000).toFixed(2),
       schedulers: this.timer === null ? 0 : 1,
       generation: this.generation,
     };
@@ -198,7 +196,7 @@ export class Transport {
   async dispose() {
     await this.pause();
     this.reference?.dispose();
-    this.voices?.dispose();
+    this.mixer?.dispose();
     await this.context?.close();
   }
 }

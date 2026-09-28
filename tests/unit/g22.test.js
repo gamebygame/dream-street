@@ -5,7 +5,8 @@ import { AssetCache, createActor } from '../../src/character/rig.js';
 import { sampleWalk, sampleDance } from '../../src/character/pose.js';
 import { wardrobeAt } from '../../src/content/plan.js';
 import { CYCLISTS, cyclistPose, cyclistState } from '../../src/content/cyclists.js';
-import { ReferenceMusic, referenceWindowAt } from '../../src/audio/reference.js';
+import { notesBetween } from '../../src/audio/score.js';
+import { CONFIG } from '../../src/config.js';
 
 test('walking elbows flex through a natural range and actual joints remain continuous', () => {
   const cache = new AssetCache(),
@@ -99,31 +100,26 @@ test('cloth light stays in one preallocated reflection group and completes after
   cache.dispose();
 });
 
-test('YouTube clock keeps the full-track timeline at chapter changes and freezes for buffering', () => {
-  const ref = new ReferenceMusic();
-  let time = 80;
-  ref.player = { getCurrentTime: () => time, getDuration: () => 420 };
-  ref.active = { start: 0, end: 840, held: 159.8 };
-  ref.status = 'playing';
-  assert.equal(ref.sample().beat, 160);
-  time = 128;
-  assert.equal(ref.sample().beat, 256);
-  ref.status = 'buffering';
-  time = 129;
-  assert.equal(ref.sample().beat, 256);
-  ref.status = 'playing';
-  assert.equal(ref.sample().beat, 258);
-  time = 4;
-  assert.equal(ref.sample().seek, true);
-  assert.equal(ref.sample().beat, 8);
+test('every beat carries an audible pulse for the walking step, in every chapter and across the seam', () => {
+  const pulse = ['kick', 'snare', 'clap', 'hat', 'shaker', 'stomp', 'groupClap', 'tom'];
+  for (let beat = 0; beat < 2 * CONFIG.cycleBeats; beat++) {
+    const onBeat = notesBetween(beat, beat + 0.001).map(n => n.inst);
+    assert.ok(
+      onBeat.some(inst => pulse.includes(inst)),
+      `beat ${beat} has no pulse`,
+    );
+  }
 });
 
-test('fractional recording durations cross repeated song boundaries without restarting the previous loop', () => {
-  const duration = 215.841,
-    length = duration * 2;
-  let window = referenceWindowAt(0, duration);
-  for (let i = 1; i < 100; i++) {
-    window = referenceWindowAt(window.end, duration);
-    assert.ok(Math.abs(window.start - i * length) < 1e-7);
-  }
+test('each chapter entrance is marked, and the loop seam gets a fill and a crash only after the first cycle', () => {
+  const at = beat => notesBetween(beat, beat + 0.001).map(n => n.inst);
+  for (const beat of [80, 208, 256, 512]) assert.ok(at(beat).includes('crash'), `${beat}`);
+  assert.ok(!at(0).includes('crash'));
+  assert.ok(notesBetween(140, 144).some(n => n.inst === 'crash' && n.params?.swell));
+  // Each build lands exactly on its window: the four-hit, the crowd groove, the parade and the next cycle.
+  for (const entrance of [48, 80, 208, 256])
+    assert.ok(
+      notesBetween(entrance - 8, entrance).some(n => n.inst === 'riser' && Math.abs(n.beat + n.dur - entrance) < 1e-9),
+      `${entrance}`,
+    );
 });

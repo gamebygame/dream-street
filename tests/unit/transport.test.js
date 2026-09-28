@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Transport, outputTime } from '../../src/audio/transport.js';
+import { CONFIG } from '../../src/config.js';
 
 function fixture() {
   let now = 0;
@@ -22,11 +23,9 @@ function fixture() {
       return { contextTime: Math.max(0, this.currentTime - 0.03), performanceTime: now * 1000 };
     },
   };
-  const voices = {
+  const mixer = {
     active: new Set(),
-    cache: new Map(),
     played: [],
-    prewarm() {},
     setVolume(v) {
       this.volume = v;
     },
@@ -36,9 +35,8 @@ function fixture() {
     setPaused(v) {
       this.paused = v;
     },
-    play(note, when, offset) {
-      this.played.push({ note, when, offset });
-      this.active.add(note.id);
+    setAudible(v) {
+      this.audible = v;
     },
     stopAll() {
       this.active.clear();
@@ -48,7 +46,11 @@ function fixture() {
   const transport = new Transport({
     contextFactory: () => context,
     now: () => now * 1000,
-    voicesFactory: () => voices,
+    mixerFactory: () => mixer,
+    play: (target, note, when, offset) => {
+      target.played.push({ note, when, offset });
+      target.active.add(note.id);
+    },
     wait: () => Promise.resolve(),
     setTimer: fn => {
       timers.set(++id, fn);
@@ -58,7 +60,7 @@ function fixture() {
   });
   return {
     context,
-    voices,
+    mixer,
     transport,
     timers,
     advance(seconds) {
@@ -105,13 +107,13 @@ test('pause freezes the unified beat and resume cannot replay a missed backlog',
   await f.transport.pause();
   f.advance(30);
   assert.equal(f.transport.sample().beat, beat);
-  assert.equal(f.voices.active.size, 0);
-  const count = f.voices.played.length;
+  assert.equal(f.mixer.active.size, 0);
+  const count = f.mixer.played.length;
   await f.transport.resume();
   assert.equal(f.transport.sample().beat, beat);
   f.advance(0.3);
   assert.ok(f.transport.sample().beat > beat);
-  assert.ok(f.voices.played.length - count < 12);
+  assert.ok(f.mixer.played.length - count < 12);
   assert.equal(f.timers.size, 1);
   await f.transport.dispose();
 });
@@ -123,7 +125,7 @@ test('mute keeps travel alive and seek reanchors without another scheduler', asy
   f.transport.setMuted(true);
   f.advance(0.8);
   assert.ok(f.transport.sample().beat > before);
-  assert.equal(f.voices.muted, true);
+  assert.equal(f.mixer.muted, true);
   await f.transport.seek(63.5);
   assert.equal(f.transport.sample().beat, 63.5);
   assert.equal(f.timers.size, 1);
@@ -147,7 +149,7 @@ test('two resume requests during the pause release still produce one clock', asy
   release();
   await Promise.all([pausing, first, second]);
   assert.equal(f.timers.size, 1);
-  assert.equal(f.voices.paused, false);
+  assert.equal(f.mixer.paused, false);
   f.transport.wait = () => Promise.resolve();
   await f.transport.dispose();
 });
@@ -167,4 +169,32 @@ test('a hidden-page pause cancels a resume queued during the output release', as
   assert.equal(f.transport.status, 'paused');
   assert.equal(f.context.state, 'suspended');
   assert.equal(f.timers.size, 0);
+});
+test('the street advances at the score tempo and sampling never commits state', async () => {
+  const f = fixture();
+  await f.transport.resume();
+  f.advance(3);
+  const beat = f.transport.sample().beat;
+  // 0.1 s of scheduling lead and a 0.03 s output delay precede the audible start.
+  assert.ok(Math.abs(beat - ((3 - 0.13) * CONFIG.bpm) / 60) < 1e-9, String(beat));
+  const before = { ...f.transport };
+  for (let i = 0; i < 1000; i++) {
+    f.transport.sample();
+    f.transport.diagnostics();
+  }
+  assert.deepEqual({ ...f.transport }, before);
+  assert.equal(f.transport.tick().beat, beat);
+  await f.transport.dispose();
+});
+test('a silenced score keeps scheduling so a comparison returns on the same beat', async () => {
+  const f = fixture();
+  f.transport.setScoreAudible(false);
+  await f.transport.resume();
+  assert.equal(f.mixer.audible, false);
+  const count = f.mixer.played.length;
+  f.advance(1);
+  assert.ok(f.mixer.played.length > count);
+  f.transport.setScoreAudible(true);
+  assert.equal(f.mixer.audible, true);
+  await f.transport.dispose();
 });

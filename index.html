@@ -16,10 +16,10 @@
         <div class="header-actions"><button id="music-toggle" class="quiet-button" aria-expanded="false" aria-controls="music-panel">音乐</button><button id="about-toggle" class="quiet-button" aria-expanded="false" aria-controls="about">关于这条街</button></div>
       </header>
       <aside id="about" class="about" hidden><p>一个人向前走。玻璃里的他跳着舞。</p><p>有人靠近，跟上几个舞步。到了路口，回头道一声再会。</p><small>脚步里的火花，花间的一次转身。<br>你可以静静看着。</small></aside>
-      <aside id="music-panel" class="music-panel" hidden aria-label="音乐来源"><strong>这条街的声音。</strong><div class="music-options"><button data-music="youtube" aria-pressed="true">Ecstatic Vibrations</button><label class="file-choice">选择本机音频<input id="music-file" type="file" accept="audio/*"></label></div><p id="music-status" role="status">Ecstatic Vibrations, Totally Transcendent · Sea Power</p><small>全程播放这首原曲，街区变化不会切换或混入其他配乐。<br>官方音源需要联网。本机文件只留在当前浏览器，也可随画面录制。</small></aside>
-      <aside id="official-shell" class="official-shell" aria-label="Sea Power 官方播放器"><div id="official-player"></div><small id="official-caption">Ecstatic Vibrations, Totally Transcendent · Sea Power</small></aside>
+      <aside id="music-panel" class="music-panel" hidden aria-label="音乐来源"><strong>这条街的声音。</strong><div class="music-options"><button data-music="score" aria-pressed="true">原创配乐</button><button data-music="reference" aria-pressed="false">对照原曲</button></div><p id="music-status" role="status">原创配乐 · 128 BPM</p><small>原创配乐与脚步、换装和舞蹈按同一份编排踩点。<br>「对照原曲」通过官方播放器播放 Sea Power 的 Ecstatic Vibrations，只用来比较力量感：画面仍按原创配乐的节拍走，两者不对齐，也无法录入视频。需要联网。</small></aside>
+      <aside id="official-shell" class="official-shell" aria-label="Sea Power 官方播放器" hidden><div id="official-player"></div><small id="official-caption">对照试听 · Ecstatic Vibrations, Totally Transcendent · Sea Power · 与画面不对齐</small></aside>
       <section id="entrance" class="entrance" aria-labelledby="entrance-title">
-        <div class="entrance-card"><span class="eyebrow">THE ROAD GOES ON</span><h2 id="entrance-title">这条路，<br>一直走下去。</h2><p>旧衣服。新舞步。一个明亮的白昼。</p><button id="start" class="start-button">开始前行 <span aria-hidden="true">↗</span></button><small>Sea Power · Ecstatic Vibrations<br>带着声音观看 · 无需操作</small></div>
+        <div class="entrance-card"><span class="eyebrow">THE ROAD GOES ON</span><h2 id="entrance-title">这条路，<br>一直走下去。</h2><p>旧衣服。新舞步。一个明亮的白昼。</p><button id="start" class="start-button">开始前行 <span aria-hidden="true">↗</span></button><small>原创配乐 · 128 BPM<br>带着声音观看 · 无需操作</small></div>
       </section>
       <footer class="controls">
         <div class="status"><span id="status-dot" class="status-dot"></span><span id="status">准备好了</span></div>
@@ -27,7 +27,7 @@
         <span class="footer-note">没有终点，也不用赶路。</span>
       </footer>
       <section id="error" class="error" role="alert" hidden><p id="error-message"></p><button id="retry" class="quiet-button">重新载入</button></section>
-      <section id="debug" class="debug" hidden><strong>G2.2 · 身体语言与折光</strong><div class="debug-actions"><button data-beat="0">从头</button><button data-beat="46">四连</button><button data-beat="60">旧装回归</button><button data-beat="78">汇入</button><button data-beat="100">同行</button><button data-beat="130">告别</button><button data-beat="146.4">花束</button><button data-beat="154.3">玫瑰</button><button data-beat="165.1">伞舞</button><button data-beat="211.4">玩具</button><button id="capture">录制 128 秒</button><label><input id="contacts" type="checkbox"> 接触线</label></div><small>官方在线播放仅录制无声画面；带音轨录制请选择自己的本机音频。</small><pre id="diagnostics"></pre></section>
+      <section id="debug" class="debug" hidden><strong>G2.3 · 节拍与身体</strong><div class="debug-actions"><button data-beat="0">从头</button><button data-beat="46">四连</button><button data-beat="60">旧装回归</button><button data-beat="78">汇入</button><button data-beat="100">同行</button><button data-beat="130">告别</button><button data-beat="146.4">花束</button><button data-beat="154.3">玫瑰</button><button data-beat="165.1">伞舞</button><button data-beat="211.4">玩具</button><button id="capture">录制一轮</button><label><input id="contacts" type="checkbox"> 接触线</label></div><div id="stems" class="debug-stems" aria-label="分轨开关"></div><small>分轨开关用于听辨；对照原曲时只录无声画面。</small><pre id="diagnostics"></pre></section>
     </main>
     <script type="module" src="/src/main.js"></script>
   </body>

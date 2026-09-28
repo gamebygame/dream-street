@@ -30,12 +30,16 @@ test('the office preserves the new outfit before a visible recovery at beat 64',
   assert.equal(wardrobeAt(64).outfit, 'old');
   assert.equal(wardrobeAt(144).outfit, 'old');
 });
-test('four costume contacts retain their accents in the original score', () => {
+test('four costume contacts precede the four band hits of the score', () => {
   for (const [i, p] of PRODUCTS.filter(p => p.hit).entries()) {
     assert.ok(Math.abs(p.hit - p.beat - CONFIG.contactLead) < 1e-10);
     assert.notEqual(wardrobeAt(p.beat - 0.001).outfit, p.outfit);
     assert.equal(wardrobeAt(p.hit).outfit, ['jacket', 'sport', 'coat', 'open'][i]);
-    assert.ok(notesBetween(p.hit, p.hit + 0.001).some(n => n.stem === 'kick' && n.velocity === 1));
+    const accent = notesBetween(p.hit, p.hit + 0.001).map(n => n.inst);
+    for (const inst of ['kick', 'impact', 'crash', 'stab', 'clap'])
+      assert.ok(accent.includes(inst), `${p.hit} ${inst}`);
+    // Stop-time: no kick between one accent and the preparation for the next.
+    assert.equal(notesBetween(p.hit + 0.25, p.hit + 1.5).filter(n => n.inst === 'kick').length, 0);
   }
 });
 test('cross-frame contacts are unique and independent of frame cadence', () => {

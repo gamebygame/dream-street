@@ -7,7 +7,7 @@ import { AssetCache, createActor } from '../../src/character/rig.js';
 import { CROWD, crowdState, crowdPose } from '../../src/content/crowd.js';
 import { FAREWELLS, greetingAt } from '../../src/content/social.js';
 import { CYCLISTS, cyclistState, cyclistPose } from '../../src/content/cyclists.js';
-import { referenceWindowAt, ReferenceMusic } from '../../src/audio/reference.js';
+import { ReferenceMusic } from '../../src/audio/reference.js';
 
 test('each electric phrase releases the arms and contains footwork, torso turns and a brief hat gesture', () => {
   const poses = Array.from({ length: 160 }, (_, i) => sampleDance(i / 10, wardrobeAt(0)));
@@ -136,13 +136,14 @@ test('bicycle feet reach the pedals, the steering hand stays on the bar and whee
   }
   cache.dispose();
 });
-test('the exact reference is the default and runs across all street chapters without a synthesizer layer', () => {
+test('the original score is the default source and the reference recording never claims synchronization', async () => {
   const reference = new ReferenceMusic();
-  assert.equal(reference.mode, 'youtube');
-  for (const beat of [0, 145, 170, 208, 252, 256, 512]) {
-    assert.deepEqual(referenceWindowAt(beat, 420), { start: 0, end: 840 });
-    assert.equal(reference.allows({ variant: 'lyric' }), false);
-    assert.equal(reference.allows({ variant: 'daylight' }), false);
-  }
-  assert.deepEqual(referenceWindowAt(841, 420), { start: 840, end: 1680 });
+  assert.equal(reference.mode, 'score');
+  assert.deepEqual(reference.diagnostics(), { mode: 'score', status: 'idle', synchronized: true, capturable: true });
+  await reference.select('silent');
+  assert.equal(reference.mode, 'silent');
+  await assert.rejects(reference.select('youtube'));
+  reference.mode = 'reference';
+  assert.equal(reference.diagnostics().synchronized, false);
+  assert.equal(reference.diagnostics().capturable, false);
 });

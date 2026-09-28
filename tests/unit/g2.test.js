@@ -38,7 +38,7 @@ test('wardrobe reveals begin at contact, finish before the next outfit, and surv
     assert.ok(Object.values(s.accessoryWeights).filter(w => w > 0).length <= 2);
   }
 });
-test('four arrangements crossfade at authored gateways, including the continuing street seam', () => {
+test('four musical chapters share the street windows, and the flower chapter is tender', () => {
   for (let b = 0; b < 512; b += 0.37) {
     const weights = themeWeightsAt(b);
     assert.ok(Math.abs(weights.reduce((sum, t) => sum + t.weight, 0) - 1) < 1e-10);
@@ -47,18 +47,23 @@ test('four arrangements crossfade at authored gateways, including the continuing
   assert.equal(new Set(notes.map(n => n.id)).size, notes.length);
   assert.deepEqual([...notesBetween(0, 79.37), ...notesBetween(79.37, 768)], notes);
   for (const [a, b, id] of [
-    [8, 72, 'daylight'],
-    [84, 136, 'pocket'],
-    [148, 200, 'lyric'],
-    [212, 248, 'parade'],
+    [0, 80, 'daylight'],
+    [80, 144, 'pocket'],
+    [144, 208, 'lyric'],
+    [208, 256, 'parade'],
   ]) {
     const phrase = notesBetween(a, b);
-    assert.ok(phrase.length > 20);
-    assert.ok(phrase.every(n => n.variant === id));
+    assert.ok(phrase.length > 100, id);
+    assert.ok(
+      phrase.every(n => n.chapter === id),
+      id,
+    );
   }
-  assert.equal(new Set(notes.map(n => n.variant)).size, 4);
-  assert.ok(notesBetween(152, 200).every(n => !['kick', 'clap', 'hat'].includes(n.stem)));
-  assert.ok(notesBetween(216, 248).some(n => n.stem === 'kick'));
+  // No driving drums under the flowers: only keys, pads, bells, a soft heartbeat and a shaker.
+  const tender = notesBetween(148, 192);
+  assert.ok(tender.every(n => !['clap', 'hat', 'snare', 'stab', 'groupClap', 'stomp'].includes(n.inst)));
+  assert.ok(tender.filter(n => n.inst === 'kick').every(n => n.params?.tone === 'soft'));
+  assert.ok(notesBetween(212, 248).some(n => n.inst === 'kick' && n.params?.tone === 'march'));
 });
 test('36 varied identities arrive gradually, share travel, and all leave at the junction', () => {
   assert.equal(CROWD.length, 36);

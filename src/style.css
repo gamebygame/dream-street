@@ -434,3 +434,9 @@ input[type='range'] {
     gap: 4px;
   }
 }
+.debug-stems {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin-top: 8px;
+}

@@ -1,7 +1,10 @@
 import './style.css';
+import { CONFIG, secondsFromBeats } from './config.js';
 import { ExperienceRenderer } from './render/scene.js';
 import { Transport } from './audio/transport.js';
 import { ReferenceMusic } from './audio/reference.js';
+import { STEMS } from './audio/mixer.js';
+import { renderScore, analyzeRender, encodeWav, CHAPTER_SPANS } from './audio/render.js';
 import { validatePlan } from './content/plan.js';
 
 const $ = selector => document.querySelector(selector);
@@ -52,9 +55,9 @@ async function seek(beat) {
 }
 function musicStatus(data) {
   const names = {
+    score: '原创配乐 · 128 BPM',
+    reference: 'Ecstatic Vibrations · 对照试听，画面不对齐',
     silent: '无声动作检查',
-    youtube: 'Ecstatic Vibrations, Totally Transcendent · Sea Power',
-    file: reference?.fileName || '本机音频',
   };
   const states = {
     loading: '连接官方音源…',
@@ -64,31 +67,29 @@ function musicStatus(data) {
     ready: '已选择',
     playing: '正在播放',
     paused: '已暂停',
-    idle: '已选择',
+    idle: '正在使用',
   };
   $('#music-status').textContent = `${names[data.mode]} · ${states[data.status] || data.status}`;
-  $('#official-caption').textContent = 'Ecstatic Vibrations, Totally Transcendent · Sea Power';
   document
     .querySelectorAll('[data-music]')
     .forEach(button => button.setAttribute('aria-pressed', String(button.dataset.music === data.mode)));
 }
+/** Switching sources never moves the clock: the score keeps time underneath a comparison or silence. */
 async function chooseMusic(mode) {
-  const running = transport.status === 'running';
-  await pause();
-  $('#official-shell').hidden = mode !== 'youtube';
+  $('#official-shell').hidden = mode !== 'reference';
   try {
     await reference.select(mode);
-    if (running) await play();
+    transport.setScoreAudible(mode === 'score');
   } catch (error) {
     $('#music-status').textContent = error.message;
     $('#music-panel').hidden = false;
   }
 }
 
-async function record({ seconds = 128.5, fromBeat = 0, visualOnly = false } = {}) {
+async function record({ seconds = secondsFromBeats(CONFIG.cycleBeats) + 0.5, fromBeat = 0, visualOnly = false } = {}) {
   if (recording) throw new Error('Already recording.');
-  if (reference.mode === 'youtube' && !visualOnly)
-    throw new Error('官方在线播放的声音无法录入视频。含声音的录制需要选择自己的本机音频文件。');
+  if (reference.mode === 'reference' && !visualOnly)
+    throw new Error('对照原曲的声音来自官方在线播放器，无法录入视频。含声音的录制请切回原创配乐。');
   if (!window.MediaRecorder || !experience.renderer.domElement.captureStream)
     throw new Error('当前浏览器不支持演示录制。');
   recording = true;
@@ -97,10 +98,10 @@ async function record({ seconds = 128.5, fromBeat = 0, visualOnly = false } = {}
     await seek(fromBeat);
     await transport.ensureAudio();
     const canvasStream = experience.renderer.domElement.captureStream(60);
-    const hasAudio = reference.mode === 'file' && !visualOnly;
+    const hasAudio = reference.mode === 'score' && !visualOnly;
     const stream = new MediaStream([
       ...canvasStream.getVideoTracks(),
-      ...(hasAudio ? transport.voices.capture.stream.getAudioTracks() : []),
+      ...(hasAudio ? transport.mixer.capture.stream.getAudioTracks() : []),
     ]);
     const mime = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/mp4'].find(type =>
       MediaRecorder.isTypeSupported(type),
@@ -136,16 +137,38 @@ async function record({ seconds = 128.5, fromBeat = 0, visualOnly = false } = {}
   }
 }
 
+/** Offline render of a span of the score for review listening; returns metrics and a base64 WAV. */
+async function renderMusic(from, to) {
+  const buffer = await renderScore(from, to),
+    bytes = encodeWav(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return { metrics: analyzeRender(buffer, from, to), wav: btoa(binary) };
+}
+
+function mountStemToggles() {
+  const container = $('#stems');
+  for (const stem of STEMS) {
+    const label = document.createElement('label'),
+      input = document.createElement('input');
+    input.type = 'checkbox';
+    input.checked = true;
+    input.addEventListener('change', async () => {
+      await transport.ensureAudio();
+      transport.mixer.setStemEnabled(stem, input.checked);
+    });
+    label.append(input, ` ${stem}`);
+    container.append(label);
+  }
+}
+
 try {
   validatePlan();
   experience = new ExperienceRenderer($('#stage'));
   reference = new ReferenceMusic({
     element: 'official-player',
     onChange: musicStatus,
-    onPause: () => pause().catch(showError),
-    onPlay: beat => (Number.isFinite(beat) ? seek(beat).then(play) : play()).catch(showError),
     onError: error => {
-      pause().catch(showError);
       $('#music-status').textContent = error.message;
       $('#music-panel').hidden = false;
     },
@@ -187,20 +210,6 @@ try {
   document
     .querySelectorAll('[data-music]')
     .forEach(button => button.addEventListener('click', () => chooseMusic(button.dataset.music)));
-  $('#music-file').addEventListener('change', async event => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const running = transport.status === 'running';
-    await pause();
-    try {
-      await transport.ensureAudio();
-      await reference.loadFile(file, transport.context, transport.voices);
-      $('#official-shell').hidden = true;
-      if (running) await play();
-    } catch (error) {
-      $('#music-status').textContent = `无法读取这份音频：${error.message}`;
-    }
-  });
   $('#retry').addEventListener('click', () => location.reload());
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) pause().catch(showError);
@@ -214,6 +223,7 @@ try {
   const params = new URLSearchParams(location.search),
     debug = params.has('debug');
   $('#debug').hidden = !debug;
+  if (debug) mountStemToggles();
   if (debug && params.get('inspect'))
     experience.setInspect({
       kind: params.get('inspect'),
@@ -228,30 +238,31 @@ try {
     experience.render(transport.sample().beat, false);
   });
   $('#capture').addEventListener('click', async () => {
-    const button = $('#capture');
+    const button = $('#capture'),
+      label = button.textContent;
     button.disabled = true;
     button.textContent = '录制中…';
     try {
-      const { blob, mime, hasAudio } = await record({ visualOnly: reference.mode === 'youtube' });
+      const { blob, mime, hasAudio } = await record({ visualOnly: reference.mode !== 'score' });
       const url = URL.createObjectURL(blob),
         link = document.createElement('a');
       link.href = url;
-      link.download = `dream-street-g2-2${hasAudio ? '' : '-silent'}.${mime.includes('mp4') ? 'mp4' : 'webm'}`;
+      link.download = `dream-street${hasAudio ? '' : '-silent'}.${mime.includes('mp4') ? 'mp4' : 'webm'}`;
       link.click();
       setTimeout(() => URL.revokeObjectURL(url), 10000);
     } catch (error) {
       showError(error);
     } finally {
       button.disabled = false;
-      button.textContent = '录制 128 秒';
+      button.textContent = label;
     }
   });
   experience.renderer.setAnimationLoop(time => {
-    if (transport.status === 'running') experience.render(transport.sample().beat);
+    if (transport.status === 'running') experience.render(transport.tick().beat);
     if (recording && transport.context) {
       const stamp = transport.context.getOutputTimestamp?.();
       if (stamp?.contextTime > 0)
-        transport.voices.setRecordingDelay(
+        transport.mixer.setRecordingDelay(
           transport.context.currentTime - stamp.contextTime - (performance.now() - stamp.performanceTime) / 1000,
         );
     }
@@ -291,6 +302,8 @@ try {
     seek,
     record,
     chooseMusic,
+    renderMusic,
+    chapters: CHAPTER_SPANS,
     snapshot: () => ({ visual: experience.diagnostics(), audio: transport.diagnostics() }),
     showContacts: show => {
       experience.street.showContacts(show);
@@ -316,8 +329,7 @@ try {
   };
   updateControls();
   musicStatus(reference.diagnostics());
-  const silent = new URLSearchParams(location.search).get('music') === 'silent';
-  if (silent) {
+  if (params.get('music') === 'silent') {
     await chooseMusic('silent');
     $('#music-status').textContent = '无声动作检查 · 此模式不代表音乐交付';
   }

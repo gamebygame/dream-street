@@ -87,7 +87,7 @@ test('the actual glass shader clips a single performer behind frames, walls and 
       r.setFixture(kind);
       return r.reflectionPixelCount();
     }, kind);
-    await page.screenshot({ path: `artifacts/g2-2/g0-${kind}.png` });
+    await page.screenshot({ path: `artifacts/browser/g0-${kind}.png` });
   }
   expect(counts.wide).toBeGreaterThan(500);
   expect(counts.split).toBeGreaterThan(0);
@@ -179,34 +179,16 @@ test('crowd joins, remains varied, and leaves through actual gaps while the solo
   expect(parts.visible).toBe(true);
 });
 
-test('local audio replaces the entire background, is capturable, and pauses and mutes with the street', async ({
+test('the original score is audible, mutes and pauses with the street, and keeps sounding across chapters', async ({
   page,
 }) => {
-  const rate = 22050,
-    count = rate * 3,
-    buffer = Buffer.alloc(44 + count * 2);
-  buffer.write('RIFF');
-  buffer.writeUInt32LE(buffer.length - 8, 4);
-  buffer.write('WAVEfmt ', 8);
-  buffer.writeUInt32LE(16, 16);
-  buffer.writeUInt16LE(1, 20);
-  buffer.writeUInt16LE(1, 22);
-  buffer.writeUInt32LE(rate, 24);
-  buffer.writeUInt32LE(rate * 2, 28);
-  buffer.writeUInt16LE(2, 32);
-  buffer.writeUInt16LE(16, 34);
-  buffer.write('data', 36);
-  buffer.writeUInt32LE(count * 2, 40);
-  for (let i = 0; i < count; i++)
-    buffer.writeInt16LE(Math.round(Math.sin((i / rate) * Math.PI * 440 * 2) * 8000), 44 + i * 2);
-  await page.locator('#music-file').setInputFiles({ name: 'test-tone.wav', mimeType: 'audio/wav', buffer });
-  await expect.poll(() => page.evaluate(() => window.__dreamStreet.music.mode)).toBe('file');
+  await page.evaluate(() => window.__dreamStreet.chooseMusic('score'));
   await page.evaluate(() => window.__dreamStreet.seek(100));
   await page.getByRole('button', { name: '开始前行' }).click();
   await page.evaluate(() => {
     const t = window.__dreamStreet.transport;
     window.__level = t.context.createAnalyser();
-    t.voices.compressor.connect(window.__level);
+    t.mixer.output.connect(window.__level);
   });
   const level = () =>
     page.evaluate(() => {
@@ -215,25 +197,24 @@ test('local audio replaces the entire background, is capturable, and pauses and 
       return Math.sqrt(data.reduce((sum, v) => sum + v * v, 0) / data.length);
     });
   await expect.poll(level).toBeGreaterThan(0.01);
-  expect(await page.evaluate(() => window.__dreamStreet.snapshot().audio.activeVoices)).toBe(0);
+  expect(await page.evaluate(() => window.__dreamStreet.snapshot().audio.activeVoices)).toBeGreaterThan(0);
   expect(await page.evaluate(() => window.__dreamStreet.snapshot().audio.music.capturable)).toBe(true);
   await page.getByRole('button', { name: '静音', exact: true }).click();
   await expect.poll(level).toBeLessThan(0.001);
   await page.evaluate(() => window.__dreamStreet.pause());
   const held = await page.evaluate(() => window.__dreamStreet.snapshot().audio.beat);
-  expect(await page.evaluate(() => window.__dreamStreet.music.source)).toBeNull();
   await page.waitForTimeout(150);
   expect(await page.evaluate(() => window.__dreamStreet.snapshot().audio.beat)).toBe(held);
+  expect(await page.evaluate(() => window.__dreamStreet.snapshot().audio.activeVoices)).toBe(0);
   await page.evaluate(() => {
     window.__dreamStreet.transport.setMuted(false);
     return window.__dreamStreet.play();
   });
   await expect.poll(level).toBeGreaterThan(0.01);
-  for (const beat of [170, 208, 255, 260, 512]) {
+  for (const beat of [150, 210, 254, 258, 512]) {
     await page.evaluate(b => window.__dreamStreet.seek(b), beat);
-    await expect.poll(level).toBeGreaterThan(0.01);
-    expect(await page.evaluate(() => window.__dreamStreet.snapshot().audio.activeVoices)).toBe(0);
-    expect(await page.evaluate(() => window.__dreamStreet.music.status)).toBe('playing');
+    await expect.poll(level).toBeGreaterThan(0.005);
+    expect(await page.evaluate(() => window.__dreamStreet.snapshot().audio.schedulers)).toBe(1);
   }
 });
 
@@ -279,11 +260,14 @@ test('garments retain visible geometry through interrupted transitions and manne
   }
 });
 
-test('the normal entry selects the exact full official track, with no original-score selector', async ({ page }) => {
+test('the normal entry uses the original score; the reference recording is only an optional comparison', async ({
+  page,
+}) => {
   await page.goto('/');
   await page.waitForFunction(() => window.__dreamStreet?.ready);
-  expect(await page.evaluate(() => window.__dreamStreet.music.mode)).toBe('youtube');
-  await expect(page.locator('#official-shell')).toBeVisible();
-  await expect(page.locator('[data-music="original"]')).toHaveCount(0);
-  expect(await page.evaluate(() => window.__dreamStreet.snapshot().audio.activeVoices)).toBe(0);
+  expect(await page.evaluate(() => window.__dreamStreet.music.mode)).toBe('score');
+  await expect(page.locator('#official-shell')).toBeHidden();
+  await expect(page.locator('[data-music="score"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('[data-music="reference"]')).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.locator('#music-file')).toHaveCount(0);
 });

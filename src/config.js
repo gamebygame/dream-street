@@ -1,5 +1,6 @@
 export const CONFIG = Object.freeze({
-  bpm: 120,
+  // The walker steps on every beat, so this is also the walking cadence in steps per minute.
+  bpm: 128,
   distancePerBeat: 0.6,
   cycleBeats: 256,
   viewHeight: 17,
@@ -15,7 +16,12 @@ export const CONFIG = Object.freeze({
   contactLead: 0.6,
   audioLookahead: 0.15,
   schedulerInterval: 25,
+  defaultVolume: 0.45,
 });
+/** The only tempo conversion: everything authored in beats reaches seconds through these. */
+export const SECONDS_PER_BEAT = 60 / CONFIG.bpm;
+export const beatsFromSeconds = seconds => seconds / SECONDS_PER_BEAT;
+export const secondsFromBeats = beats => beats * SECONDS_PER_BEAT;
 export const OUTFITS = Object.freeze({
   old: { name: '旧长大衣', color: '#535954', dark: '#333c39', trim: '#a09a83', pants: '#535752', kind: 'old' },
   jacket: { name: '短夹克', color: '#c76b4e', dark: '#934c38', trim: '#f0d9b1', pants: '#484e5a', kind: 'jacket' },
