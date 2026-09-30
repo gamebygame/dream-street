@@ -1,0 +1,38 @@
+# SPDX-FileCopyrightText: 2026 Jovi and Dream Street contributors
+# SPDX-License-Identifier: MIT
+#
+# Licensing by kind of content (REUSE 3.3): code under MIT, prose documentation under CC BY 4.0.
+version = 1
+
+[[annotations]]
+path = [
+  "src/**",
+  "tests/**",
+  "scripts/**",
+  ".github/**",
+  "index.html",
+  "*.js",
+  "*.json",
+  "LICENSE",
+  ".editorconfig",
+  ".gitattributes",
+  ".gitignore",
+  ".git-blame-ignore-revs",
+  ".prettierignore",
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Jovi and Dream Street contributors"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = ["*.md", "docs/**"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Jovi and Dream Street contributors"
+SPDX-License-Identifier = "CC-BY-4.0"
+
+# The runtime dependency's notice ships in the build as it is.
+[[annotations]]
+path = "public/THIRD_PARTY_NOTICES.txt"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2010-2026 three.js authors"
+SPDX-License-Identifier = "MIT"

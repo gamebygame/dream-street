@@ -4,6 +4,25 @@
   "private": true,
   "type": "module",
   "description": "An endless daylight street, and the self who dances in its windows.",
+  "license": "MIT",
+  "author": "Jovi (https://github.com/L-Jovi)",
+  "homepage": "https://gamebygame.github.io/dream-street/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gamebygame/dream-street.git"
+  },
+  "bugs": {
+    "url": "https://github.com/gamebygame/dream-street/issues"
+  },
+  "keywords": [
+    "browser-game",
+    "threejs",
+    "webaudio",
+    "procedural-music",
+    "generative-art",
+    "interactive-experience",
+    "rhythm"
+  ],
   "engines": {
     "node": ">=22.12.0"
   },

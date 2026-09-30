@@ -1,0 +1,5 @@
+* text=auto eol=lf
+
+# Working records and licence texts are documentation, not code, in GitHub's language statistics.
+docs/** linguist-documentation
+LICENSES/** linguist-documentation
