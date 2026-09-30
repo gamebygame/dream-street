@@ -49,7 +49,7 @@ clean-v3 的其余指标：
 
 | 检查 | 结果 |
 | --- | --- |
-| 仓库 | 由 `L-Jovi/dream-street` 转移到 `gamebygame/dream-street` 并公开。旧 SSH 地址经 GitHub 重定向仍可读，`git ls-remote` 返回同一个 `main`（`2ac048d`） |
+| 仓库 | 由 `L-Jovi/dream-street` 转移到 `gamebygame/dream-street` 并公开。旧 SSH 地址经 GitHub 重定向仍可读写：`git ls-remote` 返回同一个 `main`（`2ac048d`）；`2a7ee3e` 经旧地址推送成功，GitHub 提示仓库已迁移 |
 | `main` 保护 | 经 API 读回：对管理员同样生效，要求线性历史，禁止强推和删除；不要求 PR 或状态检查 |
 | CI | `2ac048d` 推送触发的 CI（`format:check`、`npm test`、`build`）通过 |
 | Pages 部署 | 推送时仓库仍为私有、Pages 尚未启用，第一次部署失败；启用 Pages（GitHub Actions）后手动重跑成功 |
@@ -62,7 +62,6 @@ clean-v3 的其余指标：
 ### 未验证的边界
 
 - 听感：配乐只按响度、频谱和峰值调整。是否干净、是否有老派摇滚的味道，由 Jovi 判断。
-- 经旧地址重定向的推送没有实测。
 - 原生 Safari 与 Intel Mac 本轮都没有测。
 
 ## G2.4 · 街头生活与摇滚配乐 · 2026-09-30
