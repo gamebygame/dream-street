@@ -52,6 +52,7 @@ function fixture() {
       target.active.add(note.id);
     },
     wait: () => Promise.resolve(),
+    prepare: () => Promise.resolve(),
     setTimer: fn => {
       timers.set(++id, fn);
       return id;

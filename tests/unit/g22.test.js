@@ -101,7 +101,7 @@ test('cloth light stays in one preallocated reflection group and completes after
 });
 
 test('every beat carries an audible pulse for the walking step, in every chapter and across the seam', () => {
-  const pulse = ['kick', 'snare', 'clap', 'hat', 'shaker', 'stomp', 'groupClap', 'tom'];
+  const pulse = ['kick', 'snare', 'clap', 'hat', 'shaker', 'stomp', 'groupClap', 'tom', 'tambourine'];
   for (let beat = 0; beat < 2 * CONFIG.cycleBeats; beat++) {
     const onBeat = notesBetween(beat, beat + 0.001).map(n => n.inst);
     assert.ok(
@@ -119,7 +119,9 @@ test('each chapter entrance is marked, and the loop seam gets a fill and a crash
   // Each build lands exactly on its window: the four-hit, the crowd groove, the parade and the next cycle.
   for (const entrance of [48, 80, 208, 256])
     assert.ok(
-      notesBetween(entrance - 8, entrance).some(n => n.inst === 'riser' && Math.abs(n.beat + n.dur - entrance) < 1e-9),
+      notesBetween(entrance - 8, entrance).some(
+        n => n.inst === 'cymbalRoll' && Math.abs(n.beat + n.dur - entrance) < 1e-9,
+      ),
       `${entrance}`,
     );
 });

@@ -36,7 +36,7 @@ test('four costume contacts precede the four band hits of the score', () => {
     assert.notEqual(wardrobeAt(p.beat - 0.001).outfit, p.outfit);
     assert.equal(wardrobeAt(p.hit).outfit, ['jacket', 'sport', 'coat', 'open'][i]);
     const accent = notesBetween(p.hit, p.hit + 0.001).map(n => n.inst);
-    for (const inst of ['kick', 'impact', 'crash', 'stab', 'clap'])
+    for (const inst of ['kick', 'snare', 'clap', 'crash', 'guitar', 'bass', 'piano', 'choir'])
       assert.ok(accent.includes(inst), `${p.hit} ${inst}`);
     // Stop-time: no kick between one accent and the preparation for the next.
     assert.equal(notesBetween(p.hit + 0.25, p.hit + 1.5).filter(n => n.inst === 'kick').length, 0);

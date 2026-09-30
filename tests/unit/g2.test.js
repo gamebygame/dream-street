@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { BLOCKS, PRODUCTS, REVEAL_BEATS, wardrobeAt, themeWeightsAt, contactsBetween } from '../../src/content/plan.js';
 import { CROWD, crowdState, crowdPose } from '../../src/content/crowd.js';
 import { sampleDance, sampleWalk } from '../../src/character/pose.js';
-import { notesBetween } from '../../src/audio/score.js';
+import { crowdEnergy, notesBetween } from '../../src/audio/score.js';
 
 test('nine shop types, two real junctions, and eight staged props are present', () => {
   assert.deepEqual([...new Set(BLOCKS.map(b => b.kind).filter(k => k !== 'wall'))].sort(), [
@@ -59,11 +59,23 @@ test('four musical chapters share the street windows, and the flower chapter is 
       id,
     );
   }
-  // No driving drums under the flowers: only keys, pads, bells, a soft heartbeat and a shaker.
+  // No driving drums under the flowers: piano, choir, a round bass, a violin-like guitar, a soft heartbeat and a shaker.
   const tender = notesBetween(148, 192);
-  assert.ok(tender.every(n => !['clap', 'hat', 'snare', 'stab', 'groupClap', 'stomp'].includes(n.inst)));
+  assert.ok(tender.every(n => ['piano', 'choir', 'bass', 'lead', 'kick', 'shaker'].includes(n.inst)));
   assert.ok(tender.filter(n => n.inst === 'kick').every(n => n.params?.tone === 'soft'));
-  assert.ok(notesBetween(212, 248).some(n => n.inst === 'kick' && n.params?.tone === 'march'));
+  assert.ok(tender.filter(n => n.inst === 'lead').every(n => n.params?.soft));
+  // The parade drives on piano eighths over a backbeat.
+  const parade = notesBetween(212, 248);
+  for (let beat = 212; beat < 248; beat += 0.5)
+    assert.ok(
+      parade.some(n => n.inst === 'piano' && n.beat === beat),
+      `${beat}`,
+    );
+  for (let beat = 213; beat < 248; beat += 2)
+    assert.ok(
+      parade.some(n => n.inst === 'snare' && n.beat === beat),
+      `${beat}`,
+    );
 });
 test('36 varied passers-by are street life first, join as he nears, share travel, and all leave at the junction', () => {
   assert.equal(CROWD.length, 36);
@@ -105,6 +117,12 @@ test('36 varied passers-by are street life first, join as he nears, share travel
         assert.ok(Math.abs(left.distance - right.distance) < 0.001, `${p.id} feet jump at ${beat}`);
       }
     }
+  }
+});
+test('the claps and stamps grow with the people who have actually joined', () => {
+  for (let beat = 80; beat <= 124; beat += 2) {
+    const joined = CROWD.reduce((sum, p) => sum + crowdState(p, beat).participation, 0) / CROWD.length;
+    assert.ok(Math.abs(crowdEnergy(beat) - joined) < 0.15, `${beat}: energy ${crowdEnergy(beat)} vs ${joined}`);
   }
 });
 test('imitation varies without changing the protagonist walk, and clothing changes upper-body language', () => {

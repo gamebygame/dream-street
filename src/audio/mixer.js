@@ -1,18 +1,36 @@
 import { CONFIG, SECONDS_PER_BEAT } from '../config.js';
 
-/** Stem groups; each can be muted in debug listening. Bass and harmony duck under the kick. */
-export const STEMS = Object.freeze(['drums', 'bass', 'harmony', 'lead', 'crowd', 'fx']);
+/**
+ * Stem groups of a rock band, each mutable in debug listening. Nothing ducks under the kick: a band plays together,
+ * and sidechain pumping was what made the earlier electronic score bounce.
+ */
+export const STEMS = Object.freeze(['drums', 'bass', 'guitar', 'keys', 'choir', 'lead', 'crowd', 'fx']);
 
 // Sends are per stem, so a voice only connects to its stem input.
 const SENDS = Object.freeze({
-  drums: { reverb: 0.1, delay: 0 },
+  drums: { reverb: 0.08, delay: 0 },
   bass: { reverb: 0, delay: 0 },
-  harmony: { reverb: 0.3, delay: 0.06 },
-  lead: { reverb: 0.22, delay: 0.28 },
-  crowd: { reverb: 0.26, delay: 0 },
-  fx: { reverb: 0.45, delay: 0.1 },
+  guitar: { reverb: 0.07, delay: 0 },
+  keys: { reverb: 0.2, delay: 0.03 },
+  choir: { reverb: 0.5, delay: 0 },
+  lead: { reverb: 0.18, delay: 0.3 },
+  crowd: { reverb: 0.32, delay: 0 },
+  fx: { reverb: 0.4, delay: 0 },
 });
-const LEVELS = Object.freeze({ drums: 0.9, bass: 0.78, harmony: 0.5, lead: 0.42, crowd: 0.55, fx: 0.5 });
+// Faders, set by soloing each stem over each chapter (scripts/balance-music.mjs): drums lead, the bass sits about
+// two decibels under them, the rhythm guitar just under the drums, and the choir behind everything.
+const LEVELS = Object.freeze({
+  drums: 0.29,
+  bass: 0.14,
+  guitar: 0.8,
+  keys: 0.7,
+  choir: 1.2,
+  lead: 0.55,
+  crowd: 0.8,
+  fx: 0.45,
+});
+// Drums and bass pass through gentle tanh drive for weight, like a bus into a warm console; the rest stays clean.
+const DRIVEN = Object.freeze({ drums: 1.8, bass: 1.3 });
 
 function driveCurve(amount) {
   const curve = new Float32Array(1024);
@@ -34,8 +52,8 @@ function ceilingCurve() {
   return curve;
 }
 
-/** A decaying stereo noise tail stands in for a small bright hall; the seed keeps renders repeatable. */
-function impulseResponse(context, seconds = 2.3, decay = 3.2) {
+/** A decaying stereo noise tail stands in for a live room with a plate's shine; the seed keeps renders repeatable. */
+function impulseResponse(context, seconds = 1.8, decay = 3.6) {
   const length = Math.ceil(context.sampleRate * seconds),
     buffer = context.createBuffer(2, length, context.sampleRate);
   let seed = 1234567;
@@ -81,13 +99,14 @@ export class Mixer {
     this.audible = true;
     this.sum = context.createGain();
     this.glue = context.createDynamicsCompressor();
-    this.glue.threshold.value = -16;
-    this.glue.knee.value = 8;
-    this.glue.ratio.value = 2.6;
-    this.glue.attack.value = 0.018;
-    this.glue.release.value = 0.16;
+    // Bus glue for a band: a few decibels of gain reduction with a slow enough release not to pump.
+    this.glue.threshold.value = -19;
+    this.glue.knee.value = 10;
+    this.glue.ratio.value = 2.5;
+    this.glue.attack.value = 0.008;
+    this.glue.release.value = 0.22;
     this.makeup = context.createGain();
-    this.makeup.gain.value = 1.0;
+    this.makeup.gain.value = 1.35;
     // A soft ceiling instead of a second compressor: every DynamicsCompressor adds about 6 ms of look-ahead,
     // and oversampling adds more, which would put the music audibly behind the picture.
     this.ceiling = context.createWaveShaper();
@@ -129,20 +148,17 @@ export class Mixer {
     this.delayReturn.gain.value = 0.24;
     this.delayTone.connect(this.delayReturn);
     this.delayReturn.connect(this.sum);
-    this.drive = context.createWaveShaper();
-    this.drive.curve = driveCurve(1.6);
     this.stems = {};
     for (const stem of STEMS) {
       const input = context.createGain(),
-        duck = context.createGain(),
         level = context.createGain();
       level.gain.value = LEVELS[stem];
-      input.connect(duck);
-      duck.connect(level);
-      // Drums pass through a gentle tanh drive for weight; the rest stays clean.
-      if (stem === 'drums') {
-        level.connect(this.drive);
-        this.drive.connect(this.sum);
+      input.connect(level);
+      if (DRIVEN[stem]) {
+        const drive = context.createWaveShaper();
+        drive.curve = driveCurve(DRIVEN[stem]);
+        level.connect(drive);
+        drive.connect(this.sum);
       } else level.connect(this.sum);
       for (const [send, amount] of Object.entries(SENDS[stem])) {
         if (!amount) continue;
@@ -151,22 +167,16 @@ export class Mixer {
         level.connect(gain);
         gain.connect(send === 'reverb' ? this.reverb : this.delay);
       }
-      this.stems[stem] = { input, duck, level, enabled: true };
+      this.stems[stem] = { input, level, enabled: true };
     }
     this.applyOutput();
   }
-  /** Pumps bass and harmony under a kick that lands at `when`. */
-  duck(when, depth = 0.55, release = 0.2) {
-    for (const stem of ['bass', 'harmony', 'lead']) {
-      const gain = this.stems[stem].duck.gain,
-        amount = stem === 'lead' ? depth * 0.4 : depth;
-      gain.setValueAtTime(1, when);
-      gain.linearRampToValueAtTime(1 - amount, when + 0.008);
-      gain.linearRampToValueAtTime(1, when + release);
-    }
-  }
   input(stem) {
     return this.stems[stem].input;
+  }
+  /** The shared room, for voices that want more of it than their stem sends (a rock snare, a crowd's stomps). */
+  get room() {
+    return this.reverb;
   }
   applyOutput() {
     const level = this.muted || this.paused || !this.audible ? 0 : this.volume;
@@ -189,9 +199,13 @@ export class Mixer {
     this.audible = Boolean(value);
     this.applyOutput();
   }
-  setStemEnabled(stem, enabled) {
+  /** `immediate` is for offline renders, where there is no time to glide. */
+  setStemEnabled(stem, enabled, { immediate = false } = {}) {
     this.stems[stem].enabled = Boolean(enabled);
-    this.stems[stem].level.gain.setTargetAtTime(enabled ? LEVELS[stem] : 0, this.context.currentTime, 0.02);
+    const gain = this.stems[stem].level.gain,
+      level = enabled ? LEVELS[stem] : 0;
+    if (immediate) gain.value = level;
+    else gain.setTargetAtTime(level, this.context.currentTime, 0.02);
   }
   setRecordingDelay(seconds) {
     this.captureDelay?.delayTime.setTargetAtTime(Math.max(0, Math.min(0.3, seconds)), this.context.currentTime, 0.03);
@@ -238,7 +252,7 @@ export async function measureLatency(sampleRate) {
   impulse.getChannelData(0)[0] = 0.5;
   source.buffer = impulse;
   mixer.setVolume(1);
-  source.connect(mixer.input('harmony'));
+  source.connect(mixer.input('keys'));
   source.start(0.05);
   const data = (await context.startRendering()).getChannelData(0);
   let first = Math.round(0.05 * sampleRate);

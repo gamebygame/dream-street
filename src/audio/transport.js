@@ -2,6 +2,7 @@ import { CONFIG, SECONDS_PER_BEAT, beatsFromSeconds } from '../config.js';
 import { notesBetween, activeNotesAt } from './score.js';
 import { Mixer, measureLatency } from './mixer.js';
 import { playNote } from './instruments.js';
+import { prepareTones } from './tones.js';
 
 /** Maps the AudioContext's output position to performance time, so the picture follows what is heard. */
 export function outputTime(context, now) {
@@ -29,6 +30,7 @@ export class Transport {
     wait = ms => new Promise(resolve => setTimeout(resolve, ms)),
     mixerFactory = context => new Mixer(context),
     play = playNote,
+    prepare = prepareTones,
     latency = rate => (typeof OfflineAudioContext === 'function' ? measureLatency(rate) : 0),
   } = {}) {
     this.contextFactory = contextFactory || (() => new AudioContext({ latencyHint: 'interactive' }));
@@ -38,6 +40,7 @@ export class Transport {
     this.wait = wait;
     this.mixerFactory = mixerFactory;
     this.play = play;
+    this.prepare = prepare;
     this.measureLatency = latency;
     this.latency = 0;
     this.status = 'idle';
@@ -62,6 +65,8 @@ export class Transport {
     this.mixer.setMuted(this.muted);
     this.mixer.setAudible(this.scoreAudible);
     this.latency = await this.measureLatency(this.context.sampleRate);
+    // Rendered tones must exist before the first note is scheduled; normally they were made during loading.
+    await this.prepare();
     this.context.addEventListener?.('statechange', () => {
       if (this.status === 'running' && this.context.state !== 'running') this.pause();
     });

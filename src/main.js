@@ -5,6 +5,7 @@ import { Transport } from './audio/transport.js';
 import { ReferenceMusic } from './audio/reference.js';
 import { STEMS } from './audio/mixer.js';
 import { renderScore, analyzeRender, encodeWav, CHAPTER_SPANS } from './audio/render.js';
+import { prepareTones } from './audio/tones.js';
 import { validatePlan } from './content/plan.js';
 
 const $ = selector => document.querySelector(selector);
@@ -138,8 +139,8 @@ async function record({ seconds = secondsFromBeats(CONFIG.cycleBeats) + 0.5, fro
 }
 
 /** Offline render of a span of the score for review listening; returns metrics and a base64 WAV. */
-async function renderMusic(from, to) {
-  const buffer = await renderScore(from, to),
+async function renderMusic(from, to, options = {}) {
+  const buffer = await renderScore(from, to, options),
     bytes = encodeWav(buffer);
   let binary = '';
   for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
@@ -176,7 +177,8 @@ try {
   transport = new Transport({ reference });
   startButton.disabled = true;
   startButton.firstChild.textContent = '准备街道… ';
-  await experience.warmup();
+  // The guitar tones are rendered while the street's shaders compile, before anyone can press start.
+  await Promise.all([experience.warmup(), prepareTones()]);
   startButton.disabled = false;
   startButton.firstChild.textContent = '开始前行 ';
   startButton.addEventListener('click', async () => {
