@@ -59,9 +59,9 @@ test('four musical chapters share the street windows, and the flower chapter is 
       id,
     );
   }
-  // No driving drums under the flowers: piano, choir, a round bass, a violin-like guitar, a soft heartbeat and a shaker.
+  // No driving drums under the flowers: piano, a round bass, a violin-like guitar, a soft heartbeat and a shaker.
   const tender = notesBetween(148, 192);
-  assert.ok(tender.every(n => ['piano', 'choir', 'bass', 'lead', 'kick', 'shaker'].includes(n.inst)));
+  assert.ok(tender.every(n => ['piano', 'bass', 'lead', 'kick', 'shaker'].includes(n.inst)));
   assert.ok(tender.filter(n => n.inst === 'kick').every(n => n.params?.tone === 'soft'));
   assert.ok(tender.filter(n => n.inst === 'lead').every(n => n.params?.soft));
   // The parade drives on piano eighths over a backbeat.

@@ -3,51 +3,50 @@ import { FOUR_HITS, FOUR_HIT_WINDOW, mod, smooth, themeAt } from '../content/pla
 import { SUSTAINED } from './instruments.js';
 
 /*
- * The original score: a rock band on the same beat timeline as the street, the wardrobe and the dance. Its
- * chapters are the same THEMES windows, so every musical window lines up with its shops by construction. At 128
- * BPM the walker steps on every beat, and every beat carries an audible pulse.
+ * The original score: a small rock band, played clean in the old manner, on the same beat timeline as the street,
+ * the wardrobe and the dance. Its chapters are the same THEMES windows, so every musical window lines up with its
+ * shops by construction. At 128 BPM the walker steps on every beat, and every beat carries an audible pulse. Only a
+ * few parts play at once, and every build is the drummer's fill.
  *
- *   daylight 0-80    driving G-minor rock: a riff doubled by guitar and bass, stop-time band hits for the four-hit,
- *                    and a piano interlude past the offices
+ *   daylight 0-80    driving G-minor rock: a power-chord riff doubled by guitar and bass, stop-time band hits for
+ *                    the four-hit, and a piano interlude past the offices
  *   pocket   80-144  the gathering crowd's own stamp-stamp-clap over a funk-rock bass line; the band lands once
  *                    everyone has joined, then thins out at the farewell crossroad
- *   lyric    144-208 a piano ballad in E-flat with a soft heartbeat, choir, and a violin-like guitar
+ *   lyric    144-208 a piano ballad in E-flat with a soft heartbeat and a violin-like guitar
  *   parade   208-256 piano-driven glam rock in B-flat with twin harmony guitars
  */
 
-// Guitar power-chord root, bass an octave below, piano voicing and choir voicing.
+// Guitar power-chord root, bass an octave below, and a piano voicing.
 // prettier-ignore
 const CHORDS = {
-  Gm:     { power: 43, bass: 31, piano: [55, 58, 62, 67], choir: [55, 62, 70] },
-  Bb:     { power: 46, bass: 34, piano: [58, 62, 65, 70], choir: [58, 65, 74] },
-  C:      { power: 48, bass: 36, piano: [55, 60, 64, 67], choir: [60, 67, 76] },
-  Cm:     { power: 48, bass: 36, piano: [55, 60, 63, 67], choir: [60, 67, 75] },
-  D:      { power: 50, bass: 38, piano: [57, 62, 66, 69], choir: [57, 66, 74] },
-  Eb:     { power: 51, bass: 39, piano: [55, 58, 63, 67], choir: [55, 63, 70] },
-  F:      { power: 41, bass: 29, piano: [57, 60, 65, 69], choir: [57, 65, 72] },
-  FA:     { power: 41, bass: 33, piano: [57, 60, 65, 69], choir: [57, 65, 72] },
-  Ab:     { power: 45, bass: 32, piano: [56, 60, 63, 68], choir: [56, 63, 72] },
+  Gm:     { power: 43, bass: 31, piano: [55, 58, 62, 67] },
+  Bb:     { power: 46, bass: 34, piano: [58, 62, 65, 70] },
+  C:      { power: 48, bass: 36, piano: [55, 60, 64, 67] },
+  Cm:     { power: 48, bass: 36, piano: [55, 60, 63, 67] },
+  D:      { power: 50, bass: 38, piano: [57, 62, 66, 69] },
+  Eb:     { power: 51, bass: 39, piano: [55, 58, 63, 67] },
+  F:      { power: 41, bass: 29, piano: [57, 60, 65, 69] },
+  FA:     { power: 41, bass: 33, piano: [57, 60, 65, 69] },
+  Ab:     { power: 45, bass: 32, piano: [56, 60, 63, 68] },
 };
 // The ballad's chords: left-hand octave and the right hand's arpeggio notes.
 // prettier-ignore
 const BALLAD = {
-  Ebmaj7: { hand: [39, 51], arpeggio: [58, 63, 67, 70, 74], bass: 39, choir: [55, 62, 70] },
-  BbD:    { hand: [38, 50], arpeggio: [58, 62, 65, 70, 74], bass: 38, choir: [53, 62, 70] },
-  Cm7:    { hand: [36, 48], arpeggio: [55, 60, 63, 67, 70], bass: 36, choir: [55, 63, 70] },
-  Abmaj7: { hand: [32, 44], arpeggio: [60, 63, 67, 68, 72], bass: 44, choir: [56, 63, 72] },
-  F:      { hand: [41, 53], arpeggio: [57, 60, 65, 69, 72], bass: 41, choir: [57, 65, 72] },
+  Ebmaj7: { hand: [39, 51], arpeggio: [58, 63, 67, 70, 74], bass: 39 },
+  BbD:    { hand: [38, 50], arpeggio: [58, 62, 65, 70, 74], bass: 38 },
+  Cm7:    { hand: [36, 48], arpeggio: [55, 60, 63, 67, 70], bass: 36 },
+  Abmaj7: { hand: [32, 44], arpeggio: [60, 63, 67, 68, 72], bass: 44 },
+  F:      { hand: [41, 53], arpeggio: [57, 60, 65, 69, 72], bass: 41 },
 };
 
-// The riff: a power chord per event, [offset, chord, beats, palm-muted]. Two bars on G minor, then E-flat and F.
+// The riff: a power chord per event, [offset, chord, beats, palm-muted]. Open chords with room between them, as a
+// 1970s band played it; two bars on G minor, then E-flat and F.
 // prettier-ignore
 const RIFF = [
-  [[0, 'Gm', 0.5], [0.5, 'Gm', 0.25, 1], [0.75, 'Gm', 0.25, 1], [1, 'Bb', 0.5], [1.5, 'Gm', 0.25, 1], [1.75, 'C', 0.75],
-    [2.5, 'Gm', 0.25, 1], [2.75, 'Gm', 0.25, 1], [3, 'Bb', 0.25], [3.25, 'Gm', 0.5], [3.75, 'Gm', 0.25, 1]],
-  [[0, 'Gm', 0.5], [0.5, 'Gm', 0.25, 1], [0.75, 'Gm', 0.25, 1], [1, 'Bb', 0.5], [1.5, 'Gm', 0.25, 1], [1.75, 'D', 0.75],
-    [2.5, 'C', 0.5], [3, 'Bb', 0.5], [3.5, 'F', 0.5]],
-  [[0, 'Eb', 1.5], [1.5, 'Eb', 0.25, 1], [1.75, 'Eb', 0.25, 1], [2, 'Eb', 0.5], [2.5, 'Eb', 0.25, 1], [2.75, 'Eb', 0.25, 1],
-    [3, 'F', 1]],
-  [[0, 'F', 1.5], [1.5, 'F', 0.25, 1], [1.75, 'F', 0.25, 1], [2, 'F', 0.5], [2.5, 'Gm', 0.5], [3, 'Bb', 0.5], [3.5, 'C', 0.5]],
+  [[0, 'Gm', 0.75], [1, 'Bb', 0.5], [1.75, 'C', 0.75], [3, 'Bb', 0.25], [3.25, 'Gm', 0.75]],
+  [[0, 'Gm', 0.75], [1, 'Bb', 0.5], [1.75, 'D', 0.75], [2.5, 'C', 0.5], [3, 'Bb', 0.5], [3.5, 'F', 0.5]],
+  [[0, 'Eb', 1.5], [2, 'Eb', 0.5], [2.5, 'F', 1.5]],
+  [[0, 'F', 1.5], [2, 'F', 0.5], [2.5, 'Gm', 0.5], [3, 'Bb', 0.5], [3.5, 'C', 0.5]],
 ];
 const GROOVE = ['Gm', 'Gm', 'Eb', 'F'];
 // Lead melodies: [offset, MIDI note, beats, scoop into the note] for each bar of a phrase.
@@ -86,13 +85,6 @@ const BASS_LINE = [
     [2.5, 48, 0.5], [3.25, 46, 0.25], [3.5, 48, 0.25], [3.75, 49, 0.25]],
   [[0, 48, 0.5], [0.75, 48, 0.25], [1, 55, 0.25], [1.25, 58, 0.25], [1.5, 60, 0.25], [2, 58, 0.25], [2.25, 55, 0.25],
     [2.5, 53, 0.5], [3.25, 52, 0.25], [3.5, 53, 0.25], [3.75, 54, 0.25]],
-];
-// The crowd's chant while it gathers, two bars long: [offset in the pair of bars, notes, beats].
-const CHANT = [
-  [0, [62, 74], 2],
-  [2, [65, 77], 2],
-  [4, [67, 79], 3],
-  [7, [65, 77], 1],
 ];
 const FOUR_HIT_CHORDS = ['Gm', 'Bb', 'C', 'D'];
 const FILL_TOMS = [52, 50, 47, 45];
@@ -161,9 +153,8 @@ function daylightBar(add, local, bar) {
     if (n < 6) riff(add, RIFF[mod(n - 2, 4)], { vel: 0.72 });
     else {
       // Under the lead the guitar sustains its chords and the bass drives in eighths.
-      add('guitar', 0, 0.6, { midi: chord.power, dur: 1.5 });
-      for (const offset of [1.5, 2, 2.5, 3, 3.5])
-        add('guitar', offset, 0.45, { midi: chord.power, dur: 0.25, params: { mute: true } });
+      add('guitar', 0, 0.6, { midi: chord.power, dur: 1.9 });
+      add('guitar', 2, 0.52, { midi: chord.power, dur: 1.9 });
       for (let i = 0; i < 8; i++) add('bass', i / 2, i % 2 ? 0.66 : 0.78, { midi: chord.bass, dur: 0.42 });
       melody(add, MELODY.daylight[mod(n - 6, 4)]);
     }
@@ -172,7 +163,6 @@ function daylightBar(add, local, bar) {
   if (n < 12) {
     // Two bars climbing into the four-hit: E-flat and F on the beat, then D palm-muted under a snare crescendo.
     const rising = local - 40;
-    if (local === 40) add('cymbalRoll', 0, 0.8, { dur: 8 });
     if (local === 40) add('crash', 0, 0.62);
     for (let beat = 0; beat < 4; beat++) add('kick', beat, 0.72 + 0.03 * (rising + beat));
     // The crescendo climbs toward the hits without reaching them.
@@ -192,18 +182,13 @@ function daylightBar(add, local, bar) {
         add('bass', beat, 0.8, { midi: CHORDS[name].bass, dur: 0.9 });
       }
     else {
-      for (let i = 0; i < 7; i++) {
-        add('guitar', i / 2, 0.5 + 0.04 * i, { midi: CHORDS.D.power, dur: 0.3, params: { mute: true } });
-        add('bass', i / 2, 0.7 + 0.02 * i, { midi: CHORDS.D.bass, dur: 0.42 });
+      for (let beat = 0; beat < 3; beat++) {
+        add('guitar', beat, 0.62 + 0.08 * beat, { midi: CHORDS.D.power, dur: 0.9 });
+        add('bass', beat, 0.72 + 0.04 * beat, { midi: CHORDS.D.bass, dur: 0.9 });
       }
       add('guitar', 3.5, 0.85, { midi: CHORDS.D.power, dur: 0.5 });
       fill(add, 3);
     }
-    add('choir', 0, 0.42 + (0.14 * (local - 40)) / 4, {
-      notes: local === 40 ? CHORDS.Eb.choir : CHORDS.D.choir,
-      dur: 4,
-      params: { vowel: 'ah' },
-    });
     return;
   }
   if (n < 18) {
@@ -220,28 +205,23 @@ function daylightBar(add, local, bar) {
     add('bass', 0, 0.8, { midi: chord.bass, dur: 1.4 });
     add('bass', 1.5, 0.66, { midi: chord.bass, dur: 0.45 });
     add('bass', 2.5, 0.78, { midi: chord.bass, dur: 1.4 });
-    add('choir', 0, 0.42, { notes: chord.choir, dur: 4, params: { vowel: 'oo' } });
     return;
   }
   // The gateway: F with the full band, then D under a fill into the crowd's chapter.
   if (local === 72) {
     add('crash', 0, 0.78);
     kit(add, { open: [3.5] });
-    add('guitar', 0, 0.9, { midi: CHORDS.F.power, dur: 2 });
-    for (let i = 4; i < 8; i++) add('guitar', i / 2, 0.55, { midi: CHORDS.F.power, dur: 0.3, params: { mute: true } });
+    add('guitar', 0, 0.9, { midi: CHORDS.F.power, dur: 1.9 });
+    add('guitar', 2, 0.72, { midi: CHORDS.F.power, dur: 1.9 });
     for (let i = 0; i < 8; i++) add('bass', i / 2, i % 2 ? 0.72 : 0.86, { midi: CHORDS.F.bass, dur: 0.42 });
     for (const beat of [0, 1, 2, 3]) add('piano', beat, 0.42, { notes: CHORDS.F.piano, dur: 0.9 });
     return;
   }
-  add('cymbalRoll', 0, 0.85, { dur: 4 });
   for (let beat = 0; beat < 4; beat++) add('kick', beat, 0.92);
   for (let i = 0; i < 8; i++) add('hat', i / 2, 0.24);
   for (let i = 0; i < 8; i++) add('snare', 2 + i / 4, 0.38 + 0.07 * i);
-  for (const beat of [0, 1, 2]) add('guitar', beat, 0.95, { midi: CHORDS.D.power, dur: 0.9 });
-  for (let i = 12; i < 16; i++)
-    add('guitar', i / 4, 0.6 + 0.08 * (i - 12), { midi: CHORDS.D.power, dur: 0.22, params: { mute: true } });
+  for (const beat of [0, 1, 2]) add('guitar', beat, 0.8 + 0.05 * beat, { midi: CHORDS.D.power, dur: 0.9 });
   for (let i = 0; i < 8; i++) add('bass', i / 2, 0.78 + 0.02 * i, { midi: CHORDS.D.bass, dur: 0.42 });
-  add('choir', 0, 0.62, { notes: CHORDS.D.choir, dur: 4, params: { vowel: 'ah' } });
   fill(add, 3, 0.7);
 }
 
@@ -264,12 +244,10 @@ function fourHitBar(add, local) {
     add('kick', offset, 1);
     add('tom', offset, 0.9, { midi: 40 });
     add('snare', offset, 1);
-    add('clap', offset, 0.9);
     add('crash', offset, 0.9);
     add('guitar', offset, 1, { midi: chord.power, dur: 1.2 });
     add('bass', offset, 0.95, { midi: chord.bass, dur: 1.4 });
     add('piano', offset, 0.95, { notes: [chord.bass + 12, ...chord.piano], dur: 1.2 });
-    add('choir', offset, 1, { notes: chord.choir, dur: 1, params: { vowel: 'ah', hit: true } });
   }
   // Only a ticking hat keeps the walker's pulse between the hits.
   for (let i = 0; i < 8; i++) {
@@ -279,7 +257,6 @@ function fourHitBar(add, local) {
   if (local === FOUR_HITS.at(-1)) {
     // A fill and a roll, and the riff drops back in on beat 58.
     fill(add, 1, 0.62);
-    add('cymbalRoll', 0, 0.55, { dur: 2 });
     add('crash', 2, 0.85);
     add('kick', 2, 0.95);
     add('snare', 3, 0.9);
@@ -318,13 +295,7 @@ function pocketBar(add, local) {
     for (const [offset, midi, dur] of line)
       add('bass', offset, offset % 1 ? 0.7 : 0.86, { midi, dur, params: { style: 'funk' } });
     if (local !== 80) add('guitar', 2, 0.68, { midi: chord.power, dur: 0.45 });
-    add('guitar', 3.75, 0.45, { midi: chord.power, dur: 0.2, params: { mute: true } });
-    if (local >= 96)
-      for (const [offset, notes, dur] of CHANT)
-        if (Math.floor(offset / 4) === n % 2)
-          add('choir', offset % 4, 0.5 + 0.2 * energy, { notes, dur, params: { vowel: 'oh' } });
     if (local === 108) {
-      add('cymbalRoll', 0, 0.8, { dur: 4 });
       for (let i = 8; i < 16; i++) add('snare', i / 4, 0.4 + 0.07 * (i - 8));
       fill(add, 3, 0.7);
     }
@@ -337,12 +308,9 @@ function pocketBar(add, local) {
     if (bar === 0 || bar === 2) add('crash', 0, 0.82);
     kit(add, { open: [3.5] });
     for (const beat of [1, 3]) add('groupClap', beat, 0.7, { params: { count: 3 + Math.round(9 * energy) } });
-    add('guitar', 0, 0.85, { midi: chord.power, dur: 1.5 });
-    for (const offset of [1.5, 2, 2.5, 3, 3.5])
-      add('guitar', offset, 0.55, { midi: chord.power, dur: 0.25, params: { mute: true } });
+    add('guitar', 0, 0.85, { midi: chord.power, dur: 1.9 });
+    add('guitar', 2, 0.7, { midi: chord.power, dur: 1.9 });
     for (let i = 0; i < 8; i++) add('bass', i / 2, i % 2 ? 0.72 : 0.86, { midi: chord.bass, dur: 0.42 });
-    for (const beat of [0, 1, 2, 3]) add('piano', beat, 0.4, { notes: chord.piano, dur: 0.9 });
-    add('choir', 0, 0.5, { notes: chord.choir, dur: 4, params: { vowel: 'ah' } });
     melody(add, MELODY.pocket[bar], { vel: 0.85, harmony: bar === 1 ? G_DORIAN : G_MINOR, pan: 0.35 });
     return;
   }
@@ -360,11 +328,8 @@ function pocketBar(add, local) {
   add('bass', 0, 0.5, { midi: chord.bass + 12, dur: 3.6, params: { style: local < 136 ? 'rock' : 'ballad' } });
   for (let i = 0; i < 8; i++)
     add('piano', i / 2, 0.3, { notes: [chord.piano[[0, 1, 2, 3, 2, 1, 2, 3][i]] + 12], dur: 0.9 });
-  add('choir', 0, 0.38, { notes: chord.choir, dur: 4, params: { vowel: 'oo' } });
-  if (local === 140) {
-    add('crash', 0, 0.55, { dur: 4, params: { swell: true } });
-    for (let i = 8; i < 16; i++) add('snare', i / 4, 0.12 + 0.04 * (i - 8));
-  }
+  // A soft snare roll carries the last crossroad into the flowers.
+  if (local === 140) for (let i = 8; i < 16; i++) add('snare', i / 4, 0.12 + 0.04 * (i - 8));
 }
 
 function lyricBar(add, local) {
@@ -379,7 +344,6 @@ function lyricBar(add, local) {
       dur: 1.2,
     });
   if (n >= 2) add('bass', 0, 0.32, { midi: chord.bass, dur: 3.8, params: { style: 'ballad' } });
-  if (n >= 4) add('choir', 0, 0.32, { notes: chord.choir, dur: 4, params: { vowel: 'oo' } });
   // The walker's pulse without drums: a soft heartbeat and a shaker.
   for (const beat of n >= 12 ? [0, 1, 2, 3] : [0, 2])
     if (n >= 1 || beat === 0) add('kick', beat, beat === 0 ? 0.38 : 0.26, { params: { tone: 'soft' } });
@@ -387,15 +351,11 @@ function lyricBar(add, local) {
   if (n >= 4 && n < 8)
     for (const [offset, midi, dur] of MELODY.lyric[mod(n, 4)]) add('piano', offset, 0.34, { notes: [midi], dur });
   if (n >= 8 && n < 12) melody(add, MELODY.lyric[mod(n, 4)], { vel: 0.48, soft: true });
-  if (n === 14) {
-    add('cymbalRoll', 0, 0.8, { dur: 8 });
-    for (let i = 0; i < 16; i++) add('snare', i / 4, 0.12 + 0.02 * i);
-  }
+  if (n === 14) for (let i = 0; i < 16; i++) add('snare', i / 4, 0.12 + 0.02 * i);
   if (n === 15) {
     for (let i = 0; i < 16; i++) add('snare', i / 4, 0.46 + 0.03 * i);
-    for (let i = 4; i < 8; i++)
-      add('guitar', i / 2, 0.5 + 0.08 * (i - 4), { midi: CHORDS.F.power, dur: 0.3, params: { mute: true } });
-    add('choir', 0, 0.6, { notes: CHORDS.F.choir, dur: 4, params: { vowel: 'ah' } });
+    add('guitar', 2, 0.6, { midi: CHORDS.F.power, dur: 0.9 });
+    add('guitar', 3, 0.7, { midi: CHORDS.F.power, dur: 0.9 });
     fill(add, 3, 0.7);
   }
 }
@@ -404,15 +364,12 @@ function paradeBar(add, local) {
   const n = (local - 208) / 4,
     names = [['Bb'], ['FA'], ['Gm'], ['Eb', 'F']][mod(n, 4)],
     last = local === CONFIG.cycleBeats - 4;
-  if (local === 208) {
-    add('crash', 0, 0.85);
-    add('choir', 0, 0.8, { notes: CHORDS.Bb.choir, dur: 1, params: { vowel: 'ah', hit: true } });
-  } else if (n % 4 === 0) add('crash', 0, 0.7);
+  if (local === 208) add('crash', 0, 0.85);
+  else if (n % 4 === 0) add('crash', 0, 0.7);
   kit(add, { kicks: n % 2 ? [0, 2, 2.5] : [0, 2], vel: 0.95 });
   if (n % 2 && !last)
     for (const [i, offset] of [3.25, 3.5, 3.75].entries())
       add('snare', offset, 0.34 + i * 0.1, { params: { tone: 'march' } });
-  for (let i = 0; i < 8; i++) add('tambourine', i / 2, i % 2 ? 0.2 : 0.3);
   for (const [half, name] of names.entries()) {
     const chord = CHORDS[name],
       from = names.length > 1 ? half * 2 : 0,
@@ -425,9 +382,7 @@ function paradeBar(add, local) {
     }
   }
   if (n >= 1 && n < 9) melody(add, MELODY.parade[mod(n, 4)], { vel: 0.72, harmony: B_FLAT, pan: 0.35 });
-  if (n >= 9) add('choir', 0, 0.55, { notes: CHORDS[names[0]].choir, dur: 4, params: { vowel: 'ah' } });
   if (last) {
-    add('cymbalRoll', 0, 0.8, { dur: 4 });
     for (let i = 8; i < 16; i++) add('snare', i / 4, 0.42 + 0.07 * (i - 8), { params: { tone: 'march' } });
     fill(add, 3, 0.78);
   }

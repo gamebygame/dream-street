@@ -115,13 +115,11 @@ test('each chapter entrance is marked, and the loop seam gets a fill and a crash
   const at = beat => notesBetween(beat, beat + 0.001).map(n => n.inst);
   for (const beat of [80, 208, 256, 512]) assert.ok(at(beat).includes('crash'), `${beat}`);
   assert.ok(!at(0).includes('crash'));
-  assert.ok(notesBetween(140, 144).some(n => n.inst === 'crash' && n.params?.swell));
-  // Each build lands exactly on its window: the four-hit, the crowd groove, the parade and the next cycle.
+  // A soft snare roll carries the farewell crossroad into the flowers, rising to its last stroke.
+  const roll = notesBetween(142, 144).filter(n => n.inst === 'snare');
+  assert.ok(roll.length >= 8 && roll.every((n, i) => i === 0 || n.vel > roll[i - 1].vel));
+  // Each build is the drummer's fill, landing on its window: the four-hit, the crowd groove, the parade and the
+  // next cycle.
   for (const entrance of [48, 80, 208, 256])
-    assert.ok(
-      notesBetween(entrance - 8, entrance).some(
-        n => n.inst === 'cymbalRoll' && Math.abs(n.beat + n.dur - entrance) < 1e-9,
-      ),
-      `${entrance}`,
-    );
+    assert.ok(notesBetween(entrance - 1, entrance).filter(n => n.inst === 'tom').length >= 4, `${entrance}`);
 });

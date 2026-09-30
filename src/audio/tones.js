@@ -1,7 +1,7 @@
 /*
  * Sounds that oscillators cannot make in real time are computed once in plain JavaScript and replayed as buffers:
- * plucked-string power chords through an overdriven amplifier and a speaker cabinet, and a metallic noise shared by
- * every cymbal. Everything is rendered at one fixed rate and from fixed seeds, so live playback and offline review
+ * plucked-string power chords through a crunchy valve amplifier and a speaker cabinet, and the ride of a hi-hat and
+ * a crash cymbal. Everything is rendered at one fixed rate and from fixed seeds, so live playback and offline review
  * renders use identical sound; Web Audio resamples a buffer to whatever rate its context runs at.
  */
 export const TONE_RATE = 48000;
@@ -114,8 +114,9 @@ function normalise(signal, peak) {
 const hz = midi => 440 * 2 ** ((midi - 69) / 12);
 
 /**
- * A power chord (root, fifth, octave) struck down across the strings, through an overdriven amplifier and a 4x12
- * cabinet. Palm-muted chugs are short and darker; open chords ring on under the distortion's sustain.
+ * A power chord (root, fifth, octave) struck down across the strings, through a valve amplifier on the edge of
+ * break-up and a 4x12 cabinet: the crunch of 1970s rock rather than modern high gain, so the strings still ring and
+ * decay. Palm-muted chugs are short and darker.
  */
 function powerChord(root, mute) {
   const seconds = mute ? 0.5 : 2.6,
@@ -128,16 +129,16 @@ function powerChord(root, mute) {
     });
   // Tighten the lows and push the mids before the amplifier, as a treble booster in front of a valve amp does.
   biquad(signal, 'highpass', 140, 0.707);
-  biquad(signal, 'peaking', 900, 0.8, 6);
+  biquad(signal, 'peaking', 900, 0.8, 4);
   normalise(signal, 1);
-  overdrive(signal, mute ? 9 : 14);
+  overdrive(signal, mute ? 4 : 4.5);
   // The speaker cabinet: little below 90 Hz (the amplifier's difference tones would muddy the bass), nothing much
   // above 5 kHz, a presence lift, and a slightly scooped low-mid.
   biquad(signal, 'highpass', 95, 0.707);
   biquad(signal, 'highpass', 95, 0.707);
   biquad(signal, 'peaking', 420, 1, -3);
-  biquad(signal, 'peaking', 1900, 1.2, 3.5);
-  biquad(signal, 'lowpass', 5200, 0.9);
+  biquad(signal, 'peaking', 1900, 1.2, 2.5);
+  biquad(signal, 'lowpass', 4800, 0.9);
   biquad(signal, 'lowpass', 6400, 0.6);
   // Fade the buffer's last few milliseconds so a long chord never ends on a click.
   const fade = Math.round(0.02 * TONE_RATE);
@@ -146,27 +147,56 @@ function powerChord(root, mute) {
 }
 
 /**
- * Metallic noise from six detuned square waves, the classic analogue cymbal recipe, mixed with a little white
- * noise. Hi-hats, the crash, the tambourine and the cymbal roll filter it differently.
+ * A bronze cymbal struck once. A real cymbal's modes are so dense that its spectrum is nearly continuous, so the body
+ * is noise in two bands, the brighter one dying first, the way a cymbal darkens as it rings. A sprinkling of faint
+ * inharmonic partials adds shimmer. `hat` is the tight, bright pair of hi-hat cymbals; otherwise a crash. Nothing
+ * here is periodic, unlike the six square waves of an analogue drum machine, so it does not buzz like electronics.
  */
-function metal() {
-  const signal = new Float32Array(TONE_RATE),
-    noise = random(77),
-    partials = [205.3, 304.4, 369.6, 522.7, 540, 800].map(f => f * 1.9);
-  for (let i = 0; i < signal.length; i++) {
-    const t = i / TONE_RATE;
-    let sum = 0;
-    for (const [k, f] of partials.entries()) sum += Math.sign(Math.sin(2 * Math.PI * f * t + k * 1.3));
-    signal[i] = sum / 6 + 0.35 * noise();
+function cymbal(hat) {
+  const seconds = hat ? 0.8 : 2.4,
+    length = Math.ceil(seconds * TONE_RATE),
+    bright = new Float32Array(length),
+    body = new Float32Array(length),
+    noise = random(hat ? 77 : 78),
+    fast = (hat ? 0.09 : 0.55) * TONE_RATE,
+    slow = (hat ? 0.22 : 1.5) * TONE_RATE;
+  for (let i = 0; i < length; i++) {
+    bright[i] = noise() * Math.exp(-i / fast);
+    body[i] = noise() * Math.exp(-i / slow);
   }
-  biquad(signal, 'highpass', 3000, 0.707);
+  biquad(bright, 'highpass', hat ? 8000 : 6000, 0.707);
+  biquad(body, 'bandpass', hat ? 6500 : 3200, 0.6);
+  const signal = new Float32Array(length);
+  for (let i = 0; i < length; i++) signal[i] = bright[i] + (hat ? 0.6 : 0.9) * body[i];
+  const jitter = random(hat ? 1901 : 2903),
+    modes = 64,
+    lowest = hat ? 3400 : 700,
+    span = hat ? 3.6 : 15;
+  for (let k = 0; k < modes; k++) {
+    const f = lowest * span ** ((k + 0.5 + 0.45 * jitter()) / modes),
+      tau = (hat ? 0.18 : 1.2) * (f / 3000) ** -0.4,
+      r = Math.exp(-1 / (tau * TONE_RATE)),
+      c = 2 * r * Math.cos((2 * Math.PI * f) / TONE_RATE);
+    // A faint decaying sinusoid by recursion: y[n] = 2r cos(w) y[n-1] - r^2 y[n-2].
+    let y1 = 0.012 * (0.5 + 0.5 * jitter()),
+      y2 = 0;
+    for (let i = 0; i < length; i++) {
+      const y = c * y1 - r * r * y2;
+      y2 = y1;
+      y1 = y;
+      signal[i] += y;
+    }
+  }
+  biquad(signal, 'highpass', hat ? 4500 : 1400, 0.707);
+  biquad(signal, 'lowpass', hat ? 15000 : 12500, 0.707);
   return normalise(signal, 0.8);
 }
 
 /** Power-chord roots rendered ahead of time; other roots are played from the nearest one at a slightly other rate. */
 export const CHORD_ROOTS = Object.freeze([41, 43, 45, 46, 48, 50, 51]);
 const RECIPES = new Map([
-  ['metal', metal],
+  ['hat', () => cymbal(true)],
+  ['crash', () => cymbal(false)],
   ...CHORD_ROOTS.flatMap(root => [
     [`chord:${root}`, () => powerChord(root, false)],
     [`chug:${root}`, () => powerChord(root, true)],

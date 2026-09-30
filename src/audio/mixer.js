@@ -1,36 +1,32 @@
 import { CONFIG, SECONDS_PER_BEAT } from '../config.js';
 
 /**
- * Stem groups of a rock band, each mutable in debug listening. Nothing ducks under the kick: a band plays together,
- * and sidechain pumping was what made the earlier electronic score bounce.
+ * Stem groups of a small rock band, each mutable in debug listening. Nothing ducks under the kick: a band plays
+ * together, and sidechain pumping was what made the earlier electronic score bounce.
  */
-export const STEMS = Object.freeze(['drums', 'bass', 'guitar', 'keys', 'choir', 'lead', 'crowd', 'fx']);
+export const STEMS = Object.freeze(['drums', 'bass', 'guitar', 'keys', 'lead', 'crowd']);
 
-// Sends are per stem, so a voice only connects to its stem input.
+// Sends are per stem, so a voice only connects to its stem input. A small live room; only a hint of echo on the lead.
 const SENDS = Object.freeze({
-  drums: { reverb: 0.08, delay: 0 },
+  drums: { reverb: 0.07, delay: 0 },
   bass: { reverb: 0, delay: 0 },
-  guitar: { reverb: 0.07, delay: 0 },
-  keys: { reverb: 0.2, delay: 0.03 },
-  choir: { reverb: 0.5, delay: 0 },
-  lead: { reverb: 0.18, delay: 0.3 },
-  crowd: { reverb: 0.32, delay: 0 },
-  fx: { reverb: 0.4, delay: 0 },
+  guitar: { reverb: 0.06, delay: 0 },
+  keys: { reverb: 0.14, delay: 0 },
+  lead: { reverb: 0.14, delay: 0.1 },
+  crowd: { reverb: 0.3, delay: 0 },
 });
 // Faders, set by soloing each stem over each chapter (scripts/balance-music.mjs): drums lead, the bass sits about
-// two decibels under them, the rhythm guitar just under the drums, and the choir behind everything.
+// two decibels under them, the rhythm guitar just under the drums.
 const LEVELS = Object.freeze({
-  drums: 0.29,
-  bass: 0.14,
+  drums: 0.42,
+  bass: 0.11,
   guitar: 0.8,
-  keys: 0.7,
-  choir: 1.2,
+  keys: 0.85,
   lead: 0.55,
   crowd: 0.8,
-  fx: 0.45,
 });
-// Drums and bass pass through gentle tanh drive for weight, like a bus into a warm console; the rest stays clean.
-const DRIVEN = Object.freeze({ drums: 1.8, bass: 1.3 });
+// Drums and bass pass through a touch of tanh warmth, as into a valve console; the rest stays clean.
+const DRIVEN = Object.freeze({ drums: 1.15, bass: 1.2 });
 
 function driveCurve(amount) {
   const curve = new Float32Array(1024);
@@ -52,8 +48,8 @@ function ceilingCurve() {
   return curve;
 }
 
-/** A decaying stereo noise tail stands in for a live room with a plate's shine; the seed keeps renders repeatable. */
-function impulseResponse(context, seconds = 1.8, decay = 3.6) {
+/** A decaying stereo noise tail stands in for a small live room; the seed keeps renders repeatable. */
+function impulseResponse(context, seconds = 1.3, decay = 3.8) {
   const length = Math.ceil(context.sampleRate * seconds),
     buffer = context.createBuffer(2, length, context.sampleRate);
   let seed = 1234567;
@@ -99,14 +95,14 @@ export class Mixer {
     this.audible = true;
     this.sum = context.createGain();
     this.glue = context.createDynamicsCompressor();
-    // Bus glue for a band: a few decibels of gain reduction with a slow enough release not to pump.
-    this.glue.threshold.value = -19;
+    // Light bus glue, as on a 1970s console: a couple of decibels of gain reduction that never pumps.
+    this.glue.threshold.value = -18;
     this.glue.knee.value = 10;
-    this.glue.ratio.value = 2.5;
-    this.glue.attack.value = 0.008;
-    this.glue.release.value = 0.22;
+    this.glue.ratio.value = 2;
+    this.glue.attack.value = 0.012;
+    this.glue.release.value = 0.25;
     this.makeup = context.createGain();
-    this.makeup.gain.value = 1.35;
+    this.makeup.gain.value = 1.12;
     // A soft ceiling instead of a second compressor: every DynamicsCompressor adds about 6 ms of look-ahead,
     // and oversampling adds more, which would put the music audibly behind the picture.
     this.ceiling = context.createWaveShaper();
@@ -131,7 +127,7 @@ export class Mixer {
     this.reverb = context.createConvolver();
     this.reverb.buffer = impulseResponse(context);
     this.reverbReturn = context.createGain();
-    this.reverbReturn.gain.value = 0.32;
+    this.reverbReturn.gain.value = 0.24;
     this.reverb.connect(this.reverbReturn);
     this.reverbReturn.connect(this.sum);
     this.delay = context.createDelay(2);

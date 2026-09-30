@@ -12,12 +12,19 @@ All notable changes to Dream Street are documented here. The format follows [Kee
 
 ### Changed
 
-- The original score is now a rock band in the spirit of Michael Jackson and Queen: kit, bass, doubled rhythm guitars from a plucked-string model, lead guitar, piano and choir, on the same four chapters.
-- The mixer's stems are drums, bass, guitar, keys, choir, lead, crowd and fx.
+- The original score is now a small rock band in the spirit of Michael Jackson and Queen, played clean in the manner of 1970s rock, on the same four chapters:
+  - a dry kit with modelled bronze cymbals instead of drum-machine metal;
+  - bass;
+  - doubled rhythm guitars from a plucked-string model through a crunchy rather than high-gain amp;
+  - lead guitar and piano.
+
+  Only a few parts play at once, and drum fills lead into every chapter.
+- The mixer's stems are drums, bass, guitar, keys, lead and crowd, with a small room and light bus glue.
 
 ### Removed
 
 - The electronic score's sidechain pumping, octave bass, saw plucks, glockenspiel, clav, supersaw stabs, tuba, risers and sub impacts.
+- Synthetic choir, tambourine, cymbal rolls, reversed cymbals and drum-machine hand claps.
 
 ## 0.5.0 - 2026-09-28
 

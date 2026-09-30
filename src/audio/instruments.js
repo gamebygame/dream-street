@@ -42,14 +42,6 @@ function pianoWave(context, string) {
   return pianoWaves.get(context)[string];
 }
 
-// Formants of sung vowels: frequency, bandwidth-derived Q and level.
-// prettier-ignore
-const VOWELS = {
-  ah: [[730, 6, 1], [1090, 8, 0.55], [2440, 11, 0.2]],
-  oh: [[480, 5, 1], [820, 7, 0.45], [2400, 11, 0.12]],
-  oo: [[330, 5, 1], [720, 7, 0.28], [2300, 11, 0.07]],
-};
-
 /** Collects the nodes of one note so the mixer can stop and release them together. */
 class Voice {
   constructor(mixer, note, when) {
@@ -174,33 +166,28 @@ class Voice {
 }
 
 const drums = {
-  /** A rock kick: a falling sine body, a triangle thump around 100 Hz and the beater's click. */
+  /** A warm, dry rock kick: a sine body that drops an octave and a felt beater's soft knock. */
   kick(v, note) {
     const soft = note.params?.tone === 'soft',
-      body = v.osc('sine', soft ? 88 : 150),
+      body = v.osc('sine', soft ? 88 : 112),
       level = v.gain();
-    body.frequency.exponentialRampToValueAtTime(soft ? 44 : 50, v.when + (soft ? 0.09 : 0.05));
-    v.hit(level, note.vel * (soft ? 0.62 : 0.82), soft ? 0.42 : 0.32);
+    body.frequency.exponentialRampToValueAtTime(soft ? 44 : 54, v.when + (soft ? 0.09 : 0.06));
+    v.hit(level, note.vel * (soft ? 0.62 : 0.85), soft ? 0.42 : 0.3);
     v.chain(body, level, v.mixer.input('drums'));
     if (soft) return;
-    const thump = v.osc('triangle', 115),
-      thumpLevel = v.gain();
-    thump.frequency.exponentialRampToValueAtTime(70, v.when + 0.045);
-    v.hit(thumpLevel, note.vel * 0.26, 0.07);
-    v.chain(thump, thumpLevel, v.mixer.input('drums'));
-    const click = v.noise(),
-      band = v.filter('bandpass', 3300, 0.9),
-      clickLevel = v.gain();
-    v.hit(clickLevel, note.vel * 0.3, 0.009);
-    v.chain(click, band, clickLevel, v.mixer.input('drums'));
+    const beater = v.noise(),
+      felt = v.filter('lowpass', 2200, 0.7),
+      beaterLevel = v.gain();
+    v.hit(beaterLevel, note.vel * 0.22, 0.012);
+    v.chain(beater, felt, beaterLevel, v.mixer.input('drums'));
   },
-  /** A rock snare: two head modes, the snare wires' bright rattle, the stick's crack and a share of the room. */
+  /** A rock snare: two head modes, the snare wires' rattle without a hissing top, the stick's crack, some room. */
   snare(v, note) {
     const march = note.params?.tone === 'march',
       ghost = note.vel < 0.36;
     for (const [frequency, share] of [
-      [188, 0.34],
-      [332, 0.16],
+      [186, 0.34],
+      [330, 0.15],
     ]) {
       const head = v.osc('triangle', frequency),
         level = v.gain();
@@ -209,65 +196,36 @@ const drums = {
       v.chain(head, level, v.mixer.input('drums'));
     }
     const wires = v.noise(),
-      high = v.filter('highpass', march ? 2500 : 1700),
-      shine = v.filter('peaking', 5200, 0.9, 4),
+      high = v.filter('highpass', march ? 2200 : 1500),
+      top = v.filter('lowpass', 8000, 0.7),
+      body = v.filter('peaking', 4200, 0.9, 3),
       wireLevel = v.gain();
-    v.hit(wireLevel, note.vel * 0.48, ghost ? 0.07 : march ? 0.15 : 0.21);
-    v.chain(wires, high, shine, wireLevel, v.mixer.input('drums'));
+    v.hit(wireLevel, note.vel * 0.46, ghost ? 0.07 : march ? 0.15 : 0.2);
+    v.chain(wires, high, top, body, wireLevel, v.mixer.input('drums'));
     const crack = v.noise(),
-      band = v.filter('bandpass', 2700, 0.8),
+      band = v.filter('bandpass', 2600, 0.8),
       crackLevel = v.gain();
-    v.hit(crackLevel, note.vel * 0.36, 0.018);
+    v.hit(crackLevel, note.vel * 0.34, 0.018);
     v.chain(crack, band, crackLevel, v.mixer.input('drums'));
     if (!ghost) v.room(wireLevel, 0.3);
   },
-  /** Metal hats: closed ticks and open washes from the shared metallic noise. */
+  /** Hi-hats: the rendered bronze pair, closed to a tick or left open to wash. */
   hat(v, note) {
     const open = note.params?.open,
-      metal = v.tone('metal', { offset: hash(note.id) * 0.8 }),
-      high = v.filter('highpass', 7000),
-      air = v.filter('peaking', 10500, 0.7, 5),
+      cymbal = v.tone('hat', { offset: hash(note.id) * 0.02 }),
+      high = v.filter('highpass', 6000),
       level = v.gain(),
       pan = v.pan(0.24);
-    v.hit(level, note.vel * 0.4, open ? 0.34 : 0.045, v.when, 0.001);
-    v.chain(metal, high, air, level, pan, v.mixer.input('drums'));
+    v.hit(level, note.vel * 0.42, open ? 0.3 : 0.05, v.when, 0.001);
+    v.chain(cymbal, high, level, pan, v.mixer.input('drums'));
   },
-  /** A crash; with `swell`, a reversed cymbal that grows into the next downbeat and stops on it. */
+  /** A crash cymbal ringing out and darkening as it decays. */
   crash(v, note) {
-    const swell = note.params?.swell,
-      length = swell ? note.dur * SECONDS_PER_BEAT : 2.2,
-      metal = v.tone('metal', { offset: hash(note.id) * 0.5, loop: true }),
-      wash = v.noise(),
-      high = v.filter('highpass', 3600),
-      shimmer = v.filter('peaking', 7800, 1.1, 5),
-      washLevel = v.gain(0.4),
+    const cymbal = v.tone('crash', { offset: hash(note.id) * 0.01 }),
       level = v.gain();
-    v.chain(wash, washLevel, high);
-    if (swell) {
-      level.gain.setValueAtTime(FLOOR, v.when);
-      level.gain.exponentialRampToValueAtTime(note.vel * 0.5, v.when + length);
-      level.gain.linearRampToValueAtTime(0, v.when + length + 0.02);
-      v.end = v.when + length + 0.04;
-    } else v.hit(level, note.vel * 0.52, length, v.when, 0.003);
-    v.chain(metal, high, shimmer, level, v.mixer.input('drums'));
-    v.room(level, 0.2);
-  },
-  /** A mallet roll on a suspended cymbal, swelling into the downbeat it ends on: the band's build-up. */
-  cymbalRoll(v, note) {
-    const length = note.dur * SECONDS_PER_BEAT,
-      metal = v.tone('metal', { offset: hash(note.id) * 0.5, loop: true }),
-      band = v.filter('bandpass', 2600, 0.7),
-      level = v.gain(),
-      strokes = v.gain(0.72),
-      roll = v.osc('sine', 15),
-      depth = v.gain(0.28);
-    band.frequency.exponentialRampToValueAtTime(7200, v.when + length);
-    level.gain.setValueAtTime(FLOOR, v.when);
-    level.gain.exponentialRampToValueAtTime(note.vel * 0.42, v.when + length);
-    level.gain.linearRampToValueAtTime(0, v.when + length + 0.02);
-    v.end = v.when + length + 0.04;
-    v.chain(roll, depth, strokes.gain);
-    v.chain(metal, band, strokes, level, v.mixer.input('fx'));
+    v.hit(level, note.vel * 0.55, 2.2, v.when, 0.002);
+    v.chain(cymbal, level, v.mixer.input('drums'));
+    v.room(level, 0.18);
   },
   tom(v, note) {
     const f = hz(note.midi),
@@ -278,25 +236,10 @@ const drums = {
     body.frequency.exponentialRampToValueAtTime(f, v.when + 0.09);
     skin.frequency.exponentialRampToValueAtTime(f * 1.5, v.when + 0.05);
     v.hit(level, note.vel * 0.72, 0.34);
-    v.hit(skinLevel, note.vel * 0.16, 0.06);
+    v.hit(skinLevel, note.vel * 0.1, 0.05);
     v.chain(body, level, v.mixer.input('drums'));
     v.chain(skin, skinLevel, v.mixer.input('drums'));
     v.room(level, 0.18);
-  },
-  /** A tambourine shake: a cluster of jingles from the metallic noise. */
-  tambourine(v, note) {
-    const metal = v.tone('metal', { offset: hash(note.id) * 0.8 }),
-      band = v.filter('bandpass', 8800, 1.3),
-      level = v.gain(),
-      pan = v.pan(-0.3);
-    level.gain.setValueAtTime(FLOOR, v.when);
-    for (const offset of [0, 0.009, 0.02]) {
-      level.gain.exponentialRampToValueAtTime(note.vel * 0.34, v.when + offset + 0.001);
-      level.gain.exponentialRampToValueAtTime(note.vel * 0.12, v.when + offset + 0.008);
-    }
-    level.gain.exponentialRampToValueAtTime(FLOOR, v.when + 0.16);
-    v.end = v.when + 0.18;
-    v.chain(metal, band, level, pan, v.mixer.input('drums'));
   },
   shaker(v, note) {
     const noise = v.noise(),
@@ -306,25 +249,13 @@ const drums = {
     v.hit(level, note.vel * 0.3, 0.05, v.when, 0.012);
     v.chain(noise, band, level, pan, v.mixer.input('drums'));
   },
-  clap(v, note) {
-    const noise = v.noise(),
-      band = v.filter('bandpass', 1250, 1.1),
-      level = v.gain();
-    // Three tight bursts, then the room.
-    level.gain.setValueAtTime(FLOOR, v.when);
-    for (const offset of [0, 0.011, 0.023]) {
-      level.gain.exponentialRampToValueAtTime(note.vel * 0.8, v.when + offset + 0.001);
-      level.gain.exponentialRampToValueAtTime(note.vel * 0.12, v.when + offset + 0.009);
-    }
-    level.gain.exponentialRampToValueAtTime(FLOOR, v.when + 0.2);
-    v.end = v.when + 0.22;
-    v.chain(noise, band, level, v.mixer.input('drums'));
-    v.room(level, 0.2);
-  },
 };
 
 const tonal = {
-  /** Electric bass: a picked rock tone, a brighter fingered funk tone with octave pops, or a round ballad tone. */
+  /**
+   * Electric bass with the round, woody tone of old flatwound strings: picked for rock, a little brighter and
+   * shorter for the funk line, or soft for the ballad.
+   */
   bass(v, note, resumed) {
     const { style = 'rock' } = note.params ?? {},
       f = hz(note.midi),
@@ -340,12 +271,15 @@ const tonal = {
       return;
     }
     const funk = style === 'funk',
-      string = v.osc('sawtooth', f),
+      string = v.osc('triangle', f),
+      edge = v.osc('sawtooth', f),
+      edgeLevel = v.gain(0.3),
       fundamental = v.osc('sine', f),
-      body = v.gain(0.8),
-      tone = v.filter('lowpass', funk ? 3200 : 2200, funk ? 2.2 : 1.1);
-    tone.frequency.exponentialRampToValueAtTime(funk ? 900 : 700, v.when + (funk ? 0.12 : 0.22));
+      body = v.gain(0.7),
+      tone = v.filter('lowpass', funk ? 2400 : 1500, funk ? 1.4 : 0.9);
+    tone.frequency.exponentialRampToValueAtTime(funk ? 800 : 560, v.when + (funk ? 0.12 : 0.22));
     v.chain(string, tone);
+    v.chain(edge, edgeLevel, tone);
     v.chain(fundamental, body, tone);
     v.hold(out, note.vel * 0.46, note.length, {
       attack: 0.003,
@@ -370,7 +304,7 @@ const tonal = {
     ]) {
       const take = v.tone(id, { rate: rate * detune, offset: note.elapsed * rate, at: v.when + late }),
         level = v.gain(),
-        pan = v.pan(side * 0.72);
+        pan = v.pan(side * 0.6);
       v.hold(level, note.vel * 0.5, note.length - late, {
         attack: 0.002,
         release: mute ? 0.04 : 0.09,
@@ -383,22 +317,22 @@ const tonal = {
     }
   },
   /**
-   * A singing lead guitar: two oscillators into a valve-like overdrive and a cabinet, a pick's transient, and a
-   * vibrato that blooms once the note is held. `scoop` bends up into the note; `soft` is the violin-like tone
-   * for the ballad, swelled in with the volume knob.
+   * A singing lead guitar in the older, smoother manner: a rounded source into a valve amp just breaking up and a
+   * cabinet, a pick's transient, and a vibrato that blooms once the note is held. `scoop` bends up into the note;
+   * `soft` is the violin-like tone for the ballad, swelled in with the volume knob.
    */
   lead(v, note, resumed) {
     const { scoop = false, soft = false, pan = 0 } = note.params ?? {},
       f = hz(note.midi),
-      a = v.osc('sawtooth', f, -4),
-      b = v.osc('square', f, 5),
-      mix = v.gain(0.3),
-      tame = v.filter('lowpass', soft ? 1800 : 2600, 0.7),
-      drive = v.gain(soft ? 1.4 : 3.2),
-      amp = v.shaper(soft ? 2.2 : 4),
+      a = v.osc('triangle', f, -4),
+      b = v.osc('sawtooth', f, 5),
+      mix = v.gain(0.18),
+      tame = v.filter('lowpass', soft ? 1600 : 2200, 0.7),
+      drive = v.gain(soft ? 1.2 : 2.4),
+      amp = v.shaper(soft ? 1.8 : 2.8),
       low = v.filter('highpass', 170),
-      voice = v.filter('peaking', 1250, 0.9, 4),
-      cabinet = v.filter('lowpass', soft ? 3400 : 4300, 0.8),
+      voice = v.filter('peaking', 1250, 0.9, 3),
+      cabinet = v.filter('lowpass', soft ? 3000 : 3800, 0.8),
       out = v.gain(),
       spread = v.pan(pan);
     v.chain(a, tame);
@@ -473,35 +407,6 @@ const tonal = {
     v.end = Math.max(v.end, stop + 0.4);
     out.connect(v.mixer.input('keys'));
   },
-  /**
-   * A choir singing a vowel: detuned voices with a shared vibrato through three formant filters. `hit` is a short
-   * shouted chord for band accents.
-   */
-  choir(v, note, resumed) {
-    const { vowel = 'ah', hit = false } = note.params ?? {},
-      notes = note.notes ?? [note.midi],
-      voices = v.gain(1 / Math.sqrt(notes.length)),
-      out = v.gain(),
-      vibrato = v.osc('sine', 5.1),
-      depth = v.gain(hit ? 6 : 11);
-    v.chain(vibrato, depth);
-    for (const [i, midi] of notes.entries())
-      for (const detune of [-8, 7]) {
-        const voice = v.osc('sawtooth', hz(midi), detune + 3 * Math.sin(i * 2.1)),
-          spread = v.pan((i / Math.max(1, notes.length - 1) - 0.5) * 0.9 * Math.sign(detune));
-        depth.connect(voice.detune);
-        v.chain(voice, spread, voices);
-      }
-    const smooth = v.filter('lowpass', 3600, 0.5);
-    for (const [frequency, q, share] of VOWELS[vowel]) {
-      const formant = v.filter('bandpass', frequency, q),
-        level = v.gain(share);
-      v.chain(voices, formant, level, smooth);
-    }
-    if (hit) v.hit(out, note.vel * 0.5, 0.45, v.when, 0.012);
-    else v.hold(out, note.vel * 0.34, note.length, { attack: 0.35, release: 0.8, sustain: 1, decay: 0.01, resumed });
-    v.chain(smooth, out, v.mixer.input('choir'));
-  },
 };
 
 const crowd = {
@@ -546,7 +451,7 @@ const crowd = {
 const INSTRUMENTS = { ...drums, ...tonal, ...crowd };
 export const INSTRUMENT_NAMES = Object.freeze(Object.keys(INSTRUMENTS));
 /** Instruments whose notes are long enough to be re-entered mid-note after a pause or seek. */
-export const SUSTAINED = Object.freeze(['bass', 'guitar', 'lead', 'piano', 'choir']);
+export const SUSTAINED = Object.freeze(['bass', 'guitar', 'lead', 'piano']);
 
 /**
  * Plays one score note at context time `when`. `offset` seconds skips into a sustained note after a pause or
