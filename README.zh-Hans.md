@@ -12,11 +12,11 @@
 
 他身边的街道是活的。一路上有人在逛橱窗、在路口等候、在聊天、在走路、在骑车。他走近时，这些人转过身跟上他的步子，试着学几个动作；到了下一个路口，他们挥手道别，各走各的路。
 
-Dream Street 把一场梦重建成一个小小的浏览器体验。看到和听到的一切都由代码生成：街道、人群、舞蹈，以及一首原创的摇滚配乐。主角每拍落一步，速度是 128 BPM。
+Dream Street 把一场梦重建成一个小小的浏览器体验。看到和听到的一切都由代码生成：街道、人群、舞蹈，以及为一支小型摇滚乐队写的原创配乐。主角每拍落一步，速度是 128 BPM。
 
 ## 试玩
 
-- 在线：<https://gamebygame.github.io/dream-street/>
+- 在线：<https://dream-street.jovipro.com/>
 - 本机：安装依赖、启动开发服务，打开 `http://127.0.0.1:5173/`，点击「开始前行」。
 
 ```sh
@@ -70,12 +70,12 @@ npm run preview
 
 | 拍号 | 章节 | 音乐 |
 | --- | --- | --- |
-| 0–80 | 电光 | 推进型 G 小调摇滚：吉他与贝斯齐奏同一段 riff。第 50、52、54、56 拍是四连，全乐队停顿重击；第 60–72 拍经过写字楼时是钢琴间奏。 |
+| 0–80 | 电光 | 推进型 G 小调摇滚：吉他与贝斯齐奏同一段强力和弦 riff。第 50、52、54、56 拍是四连，全乐队停顿重击；第 60–72 拍经过写字楼时是钢琴间奏。 |
 | 80–144 | 同行 | 汇集而来的人群自己的"跺、跺、拍"，底下是放克摇滚贝斯线，随加入的人数变强；所有人都跟上步子后，乐队整体落下，配双吉他和声。 |
-| 144–208 | 花间 | 降 E 大调的钢琴抒情曲，配柔和心跳、合唱和小提琴般的吉他，没有重鼓。 |
+| 144–208 | 花间 | 降 E 大调的钢琴抒情曲，配柔和心跳和小提琴般的吉他，没有重鼓。 |
 | 208–256 | 游乐 | 降 B 大调、钢琴推动的华丽摇滚，配双吉他和声。 |
 
-每一拍都有可听的节拍，每个章节入口前都有一段恰好在入口落下的铺垫。启动时实测混音链自身的延迟（Chrome 中约 6 ms），音符提前这段时间发出，让声音落在画面显示的那一拍上。
+乐队按 1970 年代摇滚的方式干净地演奏：干爽的鼓组配模拟青铜镲片、有颗粒感但不过载的吉他、钢琴，同时发声的声部很少，没有合成器和铺底音色。每一拍都有可听的节拍，每个章节入口都由一段鼓的过门引入。启动时实测混音链自身的延迟（Chrome 中约 6 ms），音符提前这段时间发出，让声音落在画面显示的那一拍上。
 
 音乐面板里的对照开关通过 YouTube 官方播放器，播放当初用来衡量力量感的 Sea Power 原曲。它让配乐静音，但配乐的时钟照走：画面继续跟随配乐，两者不对齐。对照内容永远不会被录制。
 
@@ -85,7 +85,7 @@ npm run preview
 | --- | --- |
 | `src/content/` | 256 拍街段、商品与衣装状态、表演章节，以及路人和骑车人的街头生活与路径 |
 | `src/character/` | 身体母本、骨架与 IK（肘部按解剖方向弯曲）、步态、各段舞句和衣料折光 |
-| `src/audio/` | 唯一时钟（`transport.js`）、配乐（`score.js`）、乐器（`instruments.js`）、加载时渲染的音色（`tones.js`）、混音（`mixer.js`）、离线渲染（`render.js`），以及仅作对照的原曲播放器（`reference.js`） |
+| `src/audio/` | 唯一时钟（`transport.js`）、配乐（`score.js`）、乐器（`instruments.js`）、加载时渲染的吉他和弦与镲片（`tones.js`）、混音（`mixer.js`）、离线渲染（`render.js`），以及仅作对照的原曲播放器（`reference.js`） |
 | `src/world/` | 三段循环复用的街道、36 名实例化路人和两辆自行车 |
 | `src/render/` | 固定正交镜头、共享倒影纹理、玻璃染色与裁切，以及调试特写相机 |
 | `docs/` | 意图台账、验证记录，以及素材与许可证 |
@@ -96,7 +96,7 @@ npm run preview
 
 ## 维护者
 
-项目由 Jovi（[@L-Jovi](https://github.com/L-Jovi)）维护。改动在分支上开发，经评审的 PR 合入 `main`。Hy 在工作日的发布任务也会推送本机的 `main` checkout，且只做快进推送。另见 [CONTRIBUTING.md](CONTRIBUTING.md)、[SECURITY.md](SECURITY.md)、[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) 和 [CHANGELOG.md](CHANGELOG.md)。
+项目由 Jovi（[@L-Jovi](https://github.com/L-Jovi)）维护。改动在分支上开发，经评审的 PR 合入 `main`；`main` 受保护，不能强推或删除。另见 [CONTRIBUTING.md](CONTRIBUTING.md)、[SECURITY.md](SECURITY.md)、[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) 和 [CHANGELOG.md](CHANGELOG.md)。
 
 只做格式化的提交记录在 `.git-blame-ignore-revs` 中，可执行 `git config blame.ignoreRevsFile .git-blame-ignore-revs`。
 
