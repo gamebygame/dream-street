@@ -43,6 +43,28 @@ clean-v3 的其余指标：
   - 告别路口以渐强的军鼓滚奏进入花间；
   - 花间只有钢琴、贝斯、小提琴般的吉他、柔和底鼓和沙锤。
 
+### 迁移与上线
+
+以下是 2026-09-30 至 10-01 在 GitHub 与 Cloudflare 上实际执行并读回的结果：
+
+| 检查 | 结果 |
+| --- | --- |
+| 仓库 | 由 `L-Jovi/dream-street` 转移到 `gamebygame/dream-street` 并公开。旧 SSH 地址经 GitHub 重定向仍可读，`git ls-remote` 返回同一个 `main`（`2ac048d`） |
+| `main` 保护 | 经 API 读回：对管理员同样生效，要求线性历史，禁止强推和删除；不要求 PR 或状态检查 |
+| CI | `2ac048d` 推送触发的 CI（`format:check`、`npm test`、`build`）通过 |
+| Pages 部署 | 推送时仓库仍为私有、Pages 尚未启用，第一次部署失败；启用 Pages（GitHub Actions）后手动重跑成功 |
+| github.io | 设置自定义域名之前，在应用内浏览器打开 `https://gamebygame.github.io/dream-street/`：画面时钟为 `output-timestamp`，混音延迟 6 ms，控制台无错误 |
+| 自定义域名 | 先在 GitHub 认领 `dream-street.jovipro.com`，随即在 Cloudflare 添加 CNAME `dream-street → gamebygame.github.io`，仅 DNS、不经代理。Cloudflare 与 Google 的 DoH 都解析到 GitHub Pages 的四个地址 |
+| 证书 | GitHub 的解析器起初仍缓存着 NXDOMAIN，约 10 分钟后 DNS 检查通过。重新保存域名后证书签发，GitHub 读回 `approved`，到期 2026-12-29；随后开启强制 HTTPS |
+| 跳转 | `http://dream-street.jovipro.com/` 以 301 跳到 https；`https://gamebygame.github.io/dream-street/` 以 301 跳到新域名 |
+| 新域名上的运行 | 在应用内浏览器打开 `https://dream-street.jovipro.com/` 并点击开始：安全上下文，页面与两个资源均返回 200。在新开的标签页中复测：AudioContext 为 running，画面时钟为 `output-timestamp`，混音延迟 6 ms，约 8 秒走到第 16.8 拍，控制台无消息 |
+
+### 未验证的边界
+
+- 听感：配乐只按响度、频谱和峰值调整。是否干净、是否有老派摇滚的味道，由 Jovi 判断。
+- 经旧地址重定向的推送没有实测。
+- 原生 Safari 与 Intel Mac 本轮都没有测。
+
 ## G2.4 · 街头生活与摇滚配乐 · 2026-09-30
 
 分支 `feature/music-and-motion`：路人与骑车人为 `b55cc5d`，配乐为 `a1dc18a`，开源准备在其后。本节只记录这一轮实际运行过的检查。人群是否自然、配乐是否有摇滚的力量，仍待 Jovi 观看、试听后判断。

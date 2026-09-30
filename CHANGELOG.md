@@ -9,6 +9,7 @@ All notable changes to Dream Street are documented here. The format follows [Kee
 - Passers-by are street life before they join. They browse shop windows, wait at the first crossroad, chat by the wall, walk down the pavement the other way, or cross from the side street, and only turn and walk into their places when the walker comes near.
 - The morning cyclist rides out of a side street and leads the way; the afternoon cyclist rides toward the walker and turns back beside him.
 - Open-source groundwork: the MIT licence for code and CC BY 4.0 for documentation (REUSE), a contributing guide, a security policy, a code of conduct, agent instructions, an English README with a Simplified Chinese mirror, CI, and a GitHub Pages deployment.
+- Dream Street is public under the gamebygame organisation and is served at <https://dream-street.jovipro.com/>.
 
 ### Changed
 
