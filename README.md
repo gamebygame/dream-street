@@ -14,7 +14,7 @@ Dream Street recreates a dream as a small browser experience. Everything you see
 
 ## Play
 
-- Online: <https://dream-street.jovipro.com/>
+- Online: <https://dream-street.jovipro.com/>, or the same build at <https://gamebygame.github.io/dream-street/>, which stays up even if the domain lapses.
 - Locally: install, start the dev server, open `http://127.0.0.1:5173/` and press start (开始前行).
 
 ```sh
@@ -26,7 +26,7 @@ Hiding the page pauses it; press continue (继续) when you come back. Mute only
 
 ## Repository boundary
 
-- **Tracked:** the application source (`src/`), tests (`tests/`), review and capture scripts (`scripts/`), documentation (`docs/`) and the build, CI and Pages configuration.
+- **Tracked:** the application source (`src/`), tests (`tests/`), review and capture scripts (`scripts/`), documentation (`docs/`), the build, CI and Pages configuration, and the Cloudflare Worker that serves the jovipro address (`deploy/`).
 - **Not tracked:** `artifacts/` (review frames, music renders, recordings and reports), `dist/`, `node_modules/` and caches. These are evidence and build output, and they can be regenerated.
 - **Never tracked:** credentials, personal data, absolute local paths, and third-party media without a licence to redistribute it.
 
@@ -87,10 +87,11 @@ The music panel's comparison switch plays the Sea Power recording that served as
 | `src/world/` | Three recycled street segments, 36 instanced passers-by and two bicycles |
 | `src/render/` | The fixed orthographic camera, the shared reflection texture, glass tint and clipping, and the debug close-up camera |
 | `docs/` | The intent ledger, the verification record, and assets and licences |
+| `deploy/` | The Cloudflare Worker that serves the build at dream-street.jovipro.com, and how it is set up |
 
 ## Deployment and rollback
 
-Every push to `main` builds the site and publishes it to GitHub Pages (`.github/workflows/pages.yml`); pull requests run formatting, unit tests and a build (`.github/workflows/ci.yml`). To roll back, revert the commit on `main`; the workflow republishes the earlier state. You can also re-run the Pages workflow on an earlier commit.
+Every push to `main` builds the site and publishes it to GitHub Pages at <https://gamebygame.github.io/dream-street/> (`.github/workflows/pages.yml`). <https://dream-street.jovipro.com/> serves the same files through a small Cloudflare Worker; [deploy/README.md](deploy/README.md) explains why and how it is set up. Pull requests run formatting, unit tests and a build (`.github/workflows/ci.yml`). To roll back, revert the commit on `main`; the workflow republishes the earlier state, and both addresses follow. You can also re-run the Pages workflow on an earlier commit.
 
 ## Maintainers
 

@@ -33,6 +33,7 @@ Instructions for coding agents working in this repository. People should start w
 - `docs/INTENT.md` is the intent ledger. Read it before changing motion or music, and add a row when a request changes intent.
 - `docs/VERIFICATION.md` records what was actually checked in each round. Never record a check that was not run.
 - `docs/ASSETS.md` records every source, reference and dependency with its licence.
+- `deploy/worker.js` runs on Cloudflare and serves dream-street.jovipro.com. The maintainer deploys it by hand, so a change there takes effect only after they redeploy it; see `deploy/README.md`.
 
 ## Boundaries
 

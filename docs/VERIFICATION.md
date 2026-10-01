@@ -28,6 +28,48 @@
 
 - SECURITY.md 原先说"不收集任何数据"。GitHub 的文档写明，Pages 会为安全目的记录访客的 IP 地址，所以现在分开说明页面本身和托管方。
 - G2.4 一节引用的两个提交号来自整理前的历史，改为公开历史中对应的 `07523a3` 和 `9bb6f1c`，两者代码与原提交完全相同。
+- 经 Jovi 授权，仓库开启了 secret scanning 与 push protection；API 读回两项都是 `enabled`。
+
+### 两个地址都直接可用
+
+GitHub Pages 一旦设置自定义域名，github.io 就一律 301 到该域名，所以 Pages 无法同时直接提供两个地址。现在的做法是：
+
+- Pages 不再设置自定义域名，直接提供 `https://gamebygame.github.io/dream-street/`；
+- `https://dream-street.jovipro.com/` 由 Cloudflare Worker（`deploy/worker.js`）按相同路径从 github.io 取文件。
+
+即使 jovipro.com 失效，github.io 也照常可用。配置与回滚方法见 `deploy/README.md`。
+
+切换前查到的事实：
+
+- jovipro.com 的 SSL/TLS 模式是 Full。记录改为代理后，Cloudflare 用 HTTPS 回源；在 Pages 仍持有该域名时，不会出现循环跳转。
+- Web Analytics 对整个 zone 自动注入 RUM 统计脚本（欧盟访客除外），免费版不能按主机名排除。Bot Fight Mode 是关闭的。
+- github.io 的 301 不带缓存头，而 Cloudflare 对静态扩展名的 301 默认会缓存数小时。所以 Worker 回源时完全不用 Cloudflare 缓存（`cache: 'no-store'`）。
+- 已有 CNAME 的主机名上不能建 Worker 自定义域。先删后建会让解析器把 NXDOMAIN 缓存 30 分钟（SOA 负缓存 1800 秒），所以全程只原地修改这条记录。
+
+切换过程（UTC，2026-10-01）：
+
+| 时间 | 操作 | 读回 |
+| --- | --- | --- |
+| 03:36 前 | Jovi 在 dashboard 粘贴并部署 Worker；新增配置规则 "dream-street: no RUM injection"，只匹配该主机名 | workers.dev 上的行为与代码一致：原样转发 github.io 的 301 并加上 `no-transform`，POST 返回 405，http 跳 https；规则状态为 Active |
+| 03:36:19 | 记录 `dream-street` 原地改为代理，仍是 CNAME → gamebygame.github.io | 经 Cloudflare 边缘返回 200，HTML 和 JS 与 GitHub 直出的逐字节相同，没有统计脚本和 Cookie；两家 DoH 只返回 Cloudflare 的地址 |
+| 03:41:40 | 等满原记录 300 秒的 TTL 后，添加路由 `dream-street.jovipro.com/*` → `dream-street`，fail closed | 按设计返回 503，因为 github.io 仍指回 jovipro |
+| 03:41:53 | `PUT /repos/gamebygame/dream-street/pages`，内容为 `{"cname": null}` | API 读回 `cname` 为 null，`html_url` 为 github.io |
+| 03:43:11 | github.io 的 `/dream-street/` 仍返回 301，其他文件已返回 200：GitHub 的 Fastly 新加坡节点还缓存着旧跳转（`x-cache: HIT`，age 2237 秒）。于是手动重跑 Pages 工作流，部署同一提交 `9bab2f2` | 03:44:35 起两个地址都返回 200 |
+| 03:45:57 | 记录原地改为 `AAAA 100::`，代理；dashboard 用的是 `dns_records/batch` | A、AAAA 查询均为 NOERROR，只返回 Cloudflare 地址，没有 CNAME；两个地址都返回 200 |
+| 03:46 后 | 关闭 Worker 日志和 workers.dev 地址；预览地址本来就是关闭的 | 设置读回 `observability.enabled: false`；workers.dev 返回错误 1042 |
+
+jovipro 首页从 03:41:40 停到 03:44:35，约 3 分钟，比计划的几秒长。原因是 GitHub CDN 缓存了旧跳转，取消自定义域名后不会自动失效。这段时间返回的是不缓存的 503，没有循环跳转。记录从未被删除，也从未指向我们控制之外的源站，所以不存在被他人接管的窗口。今后只要改动 Pages 的自定义域名，就应立即重跑 Pages 工作流；这一点已写入 `deploy/README.md`。
+
+切换后的检查：
+
+| 检查 | 结果 |
+| --- | --- |
+| 两个地址 | `/`、JS、CSS 和许可声明在两处都返回 200，逐字节相同，没有跳转 |
+| jovipro 的响应头 | `cache-control: max-age=600, no-transform`，没有 Set-Cookie；页面里没有统计脚本或挑战页 |
+| 跳转与错误 | `/assets` 跳到 `https://dream-street.jovipro.com/assets/`；http 跳 https 时保留路径和查询；不存在的路径返回 404；POST 返回 405；条件请求返回 304 |
+| 本机 Chrome | 无头模式，每个地址用一个全新上下文：安全上下文；点击开始 8 秒后 AudioContext 为 running，画面时钟为 `output-timestamp`，混音延迟 6 ms，走到约第 16.8 拍；首屏只请求本站的 HTML、JS、CSS，没有 YouTube 请求，控制台无消息，没有 Cookie。记录在 `artifacts/live/both-addresses.json` |
+| Worker 单元测试 | `tests/unit/worker.test.js` 4 项通过：路径映射、请求头白名单、跳转改写、503 防循环 |
+| 部署的 Worker | 部署的代码 sha256 为 `78ddd7d4…`。之后只改了一行注释，补充说明 Cloudflare 自己会把访客 IP 附在发往外部源站的请求上，行为不变 |
 
 ## G2.5 · 干净的老派摇滚与开源 · 2026-09-30
 

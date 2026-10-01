@@ -2,7 +2,7 @@
 
 [English](README.md) | 简体中文
 
-> 对应英文版：2026-09-30。英文版更新后本页可能滞后；以英文版为准。
+> 对应英文版：2026-10-01。英文版更新后本页可能滞后；以英文版为准。
 
 一条永远明亮的白昼街道，和在橱窗里起舞的自己。
 
@@ -16,7 +16,7 @@ Dream Street 把一场梦重建成一个小小的浏览器体验。看到和听�
 
 ## 试玩
 
-- 在线：<https://dream-street.jovipro.com/>
+- 在线：<https://dream-street.jovipro.com/>；同一份构建也在 <https://gamebygame.github.io/dream-street/>，即使域名失效，这个地址也照常可用。
 - 本机：安装依赖、启动开发服务，打开 `http://127.0.0.1:5173/`，点击「开始前行」。
 
 ```sh
@@ -28,7 +28,7 @@ npm run dev
 
 ## 仓库边界
 
-- **纳入版本控制：** 应用源码（`src/`）、测试（`tests/`）、评审与录制脚本（`scripts/`）、文档（`docs/`），以及构建、CI 和 Pages 配置。
+- **纳入版本控制：** 应用源码（`src/`）、测试（`tests/`）、评审与录制脚本（`scripts/`）、文档（`docs/`），构建、CI 和 Pages 配置，以及为 jovipro 地址提供服务的 Cloudflare Worker（`deploy/`）。
 - **不纳入：** `artifacts/`（评审截图、配乐渲染、录像和报告）、`dist/`、`node_modules/` 和各类缓存。这些是证据和构建产物，可以重新生成。
 - **永远不纳入：** 凭据、个人数据、本机绝对路径，以及没有再分发许可的第三方媒体。
 
@@ -89,10 +89,11 @@ npm run preview
 | `src/world/` | 三段循环复用的街道、36 名实例化路人和两辆自行车 |
 | `src/render/` | 固定正交镜头、共享倒影纹理、玻璃染色与裁切，以及调试特写相机 |
 | `docs/` | 意图台账、验证记录，以及素材与许可证 |
+| `deploy/` | 在 dream-street.jovipro.com 提供这份构建的 Cloudflare Worker，以及它的配置方式 |
 
 ## 部署与回滚
 
-每次推送到 `main` 都会构建网站并发布到 GitHub Pages（`.github/workflows/pages.yml`）；PR 会运行格式检查、单元测试和构建（`.github/workflows/ci.yml`）。回滚时，在 `main` 上 revert 那次提交，工作流会重新发布之前的状态；也可以在更早的提交上重新运行 Pages 工作流。
+每次推送到 `main` 都会构建网站，并发布到 GitHub Pages 的 <https://gamebygame.github.io/dream-street/>（`.github/workflows/pages.yml`）。<https://dream-street.jovipro.com/> 通过一个小型 Cloudflare Worker 提供同样的文件，原因和配置见 [deploy/README.md](deploy/README.md)。PR 会运行格式检查、单元测试和构建（`.github/workflows/ci.yml`）。回滚时，在 `main` 上 revert 那次提交，工作流会重新发布之前的状态，两个地址同时跟上；也可以在更早的提交上重新运行 Pages 工作流。
 
 ## 维护者
 

@@ -1,6 +1,7 @@
 name: Pages
 
-# Publishes the built experience to https://dream-street.jovipro.com/ whenever main moves.
+# Publishes the built experience to https://gamebygame.github.io/dream-street/ whenever main moves.
+# https://dream-street.jovipro.com/ serves the same files through the Cloudflare Worker in deploy/.
 # To roll back, revert the offending commit on main (or re-run this workflow on an earlier commit).
 on:
   push:
