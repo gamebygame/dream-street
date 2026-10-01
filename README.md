@@ -93,6 +93,14 @@ The music panel's comparison switch plays the Sea Power recording that served as
 
 Every push to `main` builds the site and publishes it to GitHub Pages at <https://gamebygame.github.io/dream-street/> (`.github/workflows/pages.yml`). <https://dream-street.jovipro.com/> serves the same files through a small Cloudflare Worker; [deploy/README.md](deploy/README.md) explains why and how it is set up. Pull requests run formatting, unit tests and a build (`.github/workflows/ci.yml`). To roll back, revert the commit on `main`; the workflow republishes the earlier state, and both addresses follow. You can also re-run the Pages workflow on an earlier commit.
 
+## Releases
+
+Versions follow [Semantic Versioning](https://semver.org/), and [CHANGELOG.md](CHANGELOG.md) records each one. Pushing a tag `vX.Y.Z` runs `.github/workflows/release.yml`. It builds that tag and publishes its GitHub release with:
+
+- the built site as `dream-street-X.Y.Z-site.zip` and `.tar.gz`, each with the licence (any static file server can serve it, at any path);
+- `SHA256SUMS` for both archives;
+- signed build provenance, checked with `gh attestation verify <archive> -R gamebygame/dream-street`.
+
 ## Maintainers
 
 Jovi ([@L-Jovi](https://github.com/L-Jovi)) maintains the project. Changes are developed on branches and merged into `main` through reviewed pull requests; `main` is protected against force pushes and deletion. See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) and [CHANGELOG.md](CHANGELOG.md).

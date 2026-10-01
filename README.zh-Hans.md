@@ -95,6 +95,14 @@ npm run preview
 
 每次推送到 `main` 都会构建网站，并发布到 GitHub Pages 的 <https://gamebygame.github.io/dream-street/>（`.github/workflows/pages.yml`）。<https://dream-street.jovipro.com/> 通过一个小型 Cloudflare Worker 提供同样的文件，原因和配置见 [deploy/README.md](deploy/README.md)。PR 会运行格式检查、单元测试和构建（`.github/workflows/ci.yml`）。回滚时，在 `main` 上 revert 那次提交，工作流会重新发布之前的状态，两个地址同时跟上；也可以在更早的提交上重新运行 Pages 工作流。
 
+## 版本发布
+
+版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)，每个版本的变化记录在 [CHANGELOG.md](CHANGELOG.md)。推送标签 `vX.Y.Z` 会运行 `.github/workflows/release.yml`：它构建该标签的代码，并发布对应的 GitHub Release，附带：
+
+- 构建好的站点 `dream-street-X.Y.Z-site.zip` 和 `.tar.gz`，都附有许可证（任何静态文件服务器都能直接托管，路径不限）；
+- 两个压缩包的 `SHA256SUMS`；
+- 签名的构建溯源证明，可用 `gh attestation verify <压缩包> -R gamebygame/dream-street` 校验。
+
 ## 维护者
 
 项目由 Jovi（[@L-Jovi](https://github.com/L-Jovi)）维护。改动在分支上开发，经评审的 PR 合入 `main`；`main` 受保护，不能强推或删除。另见 [CONTRIBUTING.md](CONTRIBUTING.md)、[SECURITY.md](SECURITY.md)、[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) 和 [CHANGELOG.md](CHANGELOG.md)。

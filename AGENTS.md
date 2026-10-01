@@ -10,6 +10,7 @@ Instructions for coding agents working in this repository. People should start w
 - Review motion (dev server running): `node scripts/review-frames.mjs --label <name>` writes close-ups and full frames at fixed beats to `artifacts/review/<name>/`. Single close-ups: `?debug=1&inspect=walker|dancer|crowd|cyclist&index=N&zoom=3.6`.
 - Review music: `node scripts/render-music.mjs --label <name>` renders each chapter offline to WAV with metrics in `artifacts/music/<name>/`; `node scripts/balance-music.mjs` solos each stem over each chapter.
 - Record one cycle with a soak test: `DREAM_STREET_SOAK_SECONDS=180 npm run capture` writes to `artifacts/capture/`.
+- Release (maintainer only): `npm version X.Y.Z --no-git-tag-version`; move the CHANGELOG `[Unreleased]` entries under `## [X.Y.Z] - date` and update the link references; merge to `main`; then push an annotated tag `vX.Y.Z`. The Release workflow builds the tag and publishes the release with its assets, so do not create the release by hand.
 
 `artifacts/` is ignored by Git; put evidence there, not in commits.
 

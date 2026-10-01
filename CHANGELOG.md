@@ -4,6 +4,10 @@ All notable changes to Dream Street are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added
+
+- A release workflow builds each version tag and publishes its GitHub release with the built site as `.zip` and `.tar.gz`, each with the licence, plus SHA-256 checksums and signed build provenance. The 0.6.0 release received the same assets.
+
 ## [0.6.0] - 2026-10-01
 
 ### Added
