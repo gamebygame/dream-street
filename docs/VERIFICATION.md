@@ -91,6 +91,18 @@ jovipro 首页从 03:41:40 停到 03:44:35，约 3 分钟，比计划的几秒�
 | CI 与 Pages | `d472ecf` 触发的 CI 和 Pages 都成功；部署后两个地址都返回 200，HTML 逐字节相同 |
 | 分支 | 已并入 `main` 的远端分支 `feature/music-and-motion` 和 `codex/initial-prototype` 已删除；远端只剩 `main` 和标签 `v0.6.0` |
 
+### 发布附件
+
+0.6.0 刚发布时，Release 里只有 GitHub 自动生成的源码包。之后新增了 Release 工作流（`.github/workflows/release.yml`），并以 `tag=v0.6.0` 手动运行一次（run 36815593758，成功），为它补上附件：
+
+| 附件 | 大小 | 检查 |
+| --- | --- | --- |
+| `dream-street-0.6.0-site.zip` | 180,980 字节 | 内含站点的 4 个文件和 LICENSE，与线上文件、仓库中的 LICENSE 逐字节相同 |
+| `dream-street-0.6.0-site.tar.gz` | 179,094 字节 | 内容同上，属主为 0，时间戳固定为提交时间 |
+| `SHA256SUMS` | 191 字节 | `shasum -a 256 -c` 两项都为 OK |
+
+`gh attestation verify` 对两个压缩包都验证通过：证明是 SLSA provenance v1，签名者是本仓库的 `release.yml`。0.6.0 的标签早于这个工作流，所以这次是从 `main`（`3365eaa`）手动触发，再在工作流里检出标签构建。因此证明里记录的源码是 `main@3365eaa`，没有记录检出的标签，标签只能从运行日志中核对。以后推送标签触发的发布，证明会直接记录标签和它的提交。
+
 ## G2.5 · 干净的老派摇滚与开源 · 2026-09-30
 
 Jovi 听过 G2.4 后说配乐"太混合一些电子金属音了，显得很杂"，想要老派摇滚那种干净。本节只记录实际运行过的检查；Jovi 的试听判断见"试听"一段。
