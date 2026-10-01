@@ -4,6 +4,10 @@ All notable changes to Dream Street are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Changed
+
+- The canonical address is <https://gamebygame.github.io/dream-street/>, which the README and the package homepage now give first. <https://dream-street.jovipro.com/> stays as an alias while that domain is active. GitHub does not depend on it, so github.io keeps working if the domain lapses.
+
 ### Added
 
 - A release workflow builds each version tag and publishes its GitHub release with the built site as `.zip` and `.tar.gz`, each with the licence, plus SHA-256 checksums and signed build provenance. The 0.6.0 release received the same assets.

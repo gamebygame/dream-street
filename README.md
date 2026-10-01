@@ -14,7 +14,7 @@ Dream Street recreates a dream as a small browser experience. Everything you see
 
 ## Play
 
-- Online: <https://dream-street.jovipro.com/>, or the same build at <https://gamebygame.github.io/dream-street/>, which stays up even if the domain lapses.
+- Online: <https://gamebygame.github.io/dream-street/>. While the domain is active, <https://dream-street.jovipro.com/> serves the same build as an alias.
 - Locally: install, start the dev server, open `http://127.0.0.1:5173/` and press start (开始前行).
 
 ```sh

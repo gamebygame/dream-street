@@ -16,7 +16,7 @@ Dream Street 把一场梦重建成一个小小的浏览器体验。看到和听�
 
 ## 试玩
 
-- 在线：<https://dream-street.jovipro.com/>；同一份构建也在 <https://gamebygame.github.io/dream-street/>，即使域名失效，这个地址也照常可用。
+- 在线：<https://gamebygame.github.io/dream-street/>。域名有效期内，<https://dream-street.jovipro.com/> 作为别名提供同一份构建。
 - 本机：安装依赖、启动开发服务，打开 `http://127.0.0.1:5173/`，点击「开始前行」。
 
 ```sh

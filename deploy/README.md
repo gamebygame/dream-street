@@ -4,8 +4,8 @@ Dream Street is served at two addresses. Both serve the same build:
 
 | Address | Served by |
 | --- | --- |
-| <https://dream-street.jovipro.com/> | A Cloudflare Worker ([`worker.js`](worker.js)) on the `jovipro.com` zone, which fetches every path from GitHub Pages |
-| <https://gamebygame.github.io/dream-street/> | GitHub Pages, published from `main` by `.github/workflows/pages.yml` |
+| <https://gamebygame.github.io/dream-street/> | GitHub Pages, published from `main` by `.github/workflows/pages.yml`. This is the canonical address, and the one the repository links to |
+| <https://dream-street.jovipro.com/> | An alias while the domain is active: a Cloudflare Worker ([`worker.js`](worker.js)) on the `jovipro.com` zone, which fetches every path from GitHub Pages |
 
 GitHub Pages serves a project at one address only: once a custom domain is set, github.io redirects to it. So Pages has no custom domain, and the Worker serves the same files under the jovipro name. github.io does not depend on jovipro.com and keeps working if that domain lapses.
 
@@ -37,6 +37,8 @@ On the `jovipro.com` zone:
 
 - **A bad build:** revert the commit on `main`. Pages redeploys, and the Worker serves the result at once. Browsers may keep a page for up to 10 minutes, GitHub's cache lifetime.
 - **A bad Worker:** in the dashboard, deploy the previous version from the Worker's Deployments tab. github.io is unaffected.
-- **Back to a single address:** remove the route, set the Pages custom domain to `dream-street.jovipro.com`, and replace the DNS record with `CNAME gamebygame.github.io`, DNS only. github.io then redirects to jovipro, as it did before 0.6.0.
+- **Retire the Worker:** remove the route and add a Cloudflare redirect rule that sends `dream-street.jovipro.com/*` to `https://gamebygame.github.io/dream-street/` with the path and query string. The alias then lands visitors on github.io.
+
+Do not give Pages a custom domain on jovipro. github.io would redirect to it and stop working the day the domain lapses, which is the dependency this setup avoids.
 
 Whenever the Pages custom domain changes, re-run the Pages workflow. GitHub's CDN can keep the old redirect for a folder such as `/dream-street/` until the next deployment clears it.
