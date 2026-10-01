@@ -71,6 +71,16 @@ jovipro 首页从 03:41:40 停到 03:44:35，约 3 分钟，比计划的几秒�
 | Worker 单元测试 | `tests/unit/worker.test.js` 4 项通过：路径映射、请求头白名单、跳转改写、503 防循环 |
 | 部署的 Worker | 部署的代码 sha256 为 `78ddd7d4…`。之后只改了一行注释，补充说明 Cloudflare 自己会把访客 IP 附在发往外部源站的请求上，行为不变 |
 
+### 发布前检查
+
+用 `npm version 0.6.0 --no-git-tag-version` 改好版本号之后：
+
+- 格式检查（Prettier，覆盖仓库中全部文件）：通过；
+- `npm test`：50 项通过，其中 4 项是新增的 Worker 测试；
+- `npm run build`：通过，产物与线上 `index-gUT5twIq.js` 逐字节相同，版本号不会进入构建；
+- `npm run test:browser`：12 项通过；
+- `reuse --no-multiprocessing lint`（reuse 6.2.0）：61 个文件都有版权与许可信息。
+
 ## G2.5 · 干净的老派摇滚与开源 · 2026-09-30
 
 Jovi 听过 G2.4 后说配乐"太混合一些电子金属音了，显得很杂"，想要老派摇滚那种干净。本节只记录实际运行过的检查；Jovi 的试听判断见"试听"一段。

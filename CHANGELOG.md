@@ -2,7 +2,9 @@
 
 All notable changes to Dream Street are documented here. The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/). Versions before 0.6.0 were not tagged.
 
-## Unreleased
+## [Unreleased]
+
+## [0.6.0] - 2026-10-01
 
 ### Added
 
@@ -55,3 +57,6 @@ All notable changes to Dream Street are documented here. The format follows [Kee
 ### Added
 
 - The G0 and G1 prototype: the fixed street camera, the walker and his single reflection sharing one anchor, clipping by the glass, and the four-hit memory.
+
+[Unreleased]: https://github.com/gamebygame/dream-street/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/gamebygame/dream-street/releases/tag/v0.6.0
