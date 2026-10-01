@@ -81,6 +81,16 @@ jovipro 首页从 03:41:40 停到 03:44:35，约 3 分钟，比计划的几秒�
 - `npm run test:browser`：12 项通过；
 - `reuse --no-multiprocessing lint`（reuse 6.2.0）：61 个文件都有版权与许可信息。
 
+### 发布与清理
+
+| 检查 | 结果 |
+| --- | --- |
+| `main` | 快进到 `d472ecf`（Release 0.6.0）并推送 |
+| 标签 | `v0.6.0` 是附注标签，标签对象 `62c3351`，指向 `d472ecf` |
+| 发布 | GitHub Release "Dream Street 0.6.0" 于 2026-10-01 03:57:21 UTC 发布，非草稿、非预发布；说明文字取自 CHANGELOG 的 0.6.0 一节 |
+| CI 与 Pages | `d472ecf` 触发的 CI 和 Pages 都成功；部署后两个地址都返回 200，HTML 逐字节相同 |
+| 分支 | 已并入 `main` 的远端分支 `feature/music-and-motion` 和 `codex/initial-prototype` 已删除；远端只剩 `main` 和标签 `v0.6.0` |
+
 ## G2.5 · 干净的老派摇滚与开源 · 2026-09-30
 
 Jovi 听过 G2.4 后说配乐"太混合一些电子金属音了，显得很杂"，想要老派摇滚那种干净。本节只记录实际运行过的检查；Jovi 的试听判断见"试听"一段。
