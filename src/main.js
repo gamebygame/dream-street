@@ -7,6 +7,7 @@ import { STEMS } from './audio/mixer.js';
 import { renderScore, analyzeRender, encodeWav, CHAPTER_SPANS } from './audio/render.js';
 import { prepareTones } from './audio/tones.js';
 import { validatePlan } from './content/plan.js';
+import { responseBetween } from './content/response.js';
 
 const $ = selector => document.querySelector(selector);
 const entrance = $('#entrance'),
@@ -38,6 +39,8 @@ async function play() {
   await transport.resume();
   started = true;
   entrance.hidden = true;
+  // Focus would otherwise stay on the hidden start button, and Space would press it again instead of clapping.
+  if (document.activeElement === startButton) startButton.blur();
   $('#error').hidden = true;
   updateControls();
 }
@@ -54,6 +57,22 @@ async function seek(beat) {
   experience.resetMetrics();
   updateControls();
 }
+/** The visitor's one verb. Stamped with the audible beat, so the passers-by answer what was heard. */
+function clap() {
+  if (document.hidden || transport.status !== 'running') return false;
+  const counted = transport.clap(transport.sample().beat);
+  if (counted) {
+    // The status dot jumps once per clap that counted, so a press is never left unanswered.
+    const dot = $('#status-dot');
+    dot.classList.remove('clap');
+    void dot.offsetWidth;
+    dot.classList.add('clap');
+  }
+  return counted;
+}
+const isControl = target =>
+  target instanceof Element &&
+  Boolean(target.closest('button, input, select, textarea, a, [role="button"], [role="slider"]'));
 function musicStatus(data) {
   const names = {
     score: '原创配乐 · 128 BPM',
@@ -138,9 +157,13 @@ async function record({ seconds = secondsFromBeats(CONFIG.cycleBeats) + 0.5, fro
   }
 }
 
-/** Offline render of a span of the score for review listening; returns metrics and a base64 WAV. */
-async function renderMusic(from, to, options = {}) {
-  const buffer = await renderScore(from, to, options),
+/**
+ * Offline render of a span of the score for review listening; returns metrics and a base64 WAV. `claps` (beats)
+ * renders the crowd's answer to that clapping beside the score, for comparison with the plain render.
+ */
+async function renderMusic(from, to, { claps = null, ...options } = {}) {
+  const extra = claps ? responseBetween(from, to, claps) : [];
+  const buffer = await renderScore(from, to, { ...options, extra }),
     bytes = encodeWav(buffer);
   let binary = '';
   for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
@@ -175,6 +198,7 @@ try {
     },
   });
   transport = new Transport({ reference });
+  experience.claps = transport.claps;
   startButton.disabled = true;
   startButton.firstChild.textContent = '准备街道… ';
   // The guitar tones are rendered while the street's shaders compile, before anyone can press start.
@@ -200,6 +224,9 @@ try {
     $('#mute').textContent = transport.muted ? '静音中' : '声音';
   });
   $('#volume').addEventListener('input', event => transport.setVolume(Number(event.target.value)));
+  experience.renderer.domElement.addEventListener('pointerdown', event => {
+    if (event.isPrimary && event.button === 0) clap();
+  });
   $('#about-toggle').addEventListener('click', () => {
     const hidden = !$('#about').hidden;
     $('#about').hidden = hidden;
@@ -217,6 +244,19 @@ try {
     if (document.hidden) pause().catch(showError);
   });
   document.addEventListener('keydown', event => {
+    // Space claps; a held key is one clap, and a focused control keeps its own meaning for the key.
+    if (
+      event.code === 'Space' &&
+      !event.repeat &&
+      !event.isComposing &&
+      !event.altKey &&
+      !event.ctrlKey &&
+      !event.metaKey &&
+      !isControl(event.target)
+    ) {
+      if (clap()) event.preventDefault();
+      return;
+    }
     if (event.key === 'Escape' && started) {
       event.preventDefault();
       (transport.status === 'running' ? pause() : play()).catch(showError);
@@ -302,6 +342,7 @@ try {
     play,
     pause,
     seek,
+    clap,
     record,
     chooseMusic,
     renderMusic,

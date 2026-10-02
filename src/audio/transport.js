@@ -1,5 +1,6 @@
 import { CONFIG, SECONDS_PER_BEAT, beatsFromSeconds } from '../config.js';
 import { notesBetween, activeNotesAt } from './score.js';
+import { ClapLog, clapNote, groove, responseBetween } from '../content/response.js';
 import { Mixer, measureLatency } from './mixer.js';
 import { playNote } from './instruments.js';
 import { prepareTones } from './tones.js';
@@ -56,6 +57,16 @@ export class Transport {
     this.syncMode = 'not-started';
     this.error = null;
     this.reference = reference;
+    this.claps = new ClapLog();
+  }
+  /**
+   * The visitor claps at the audible beat: heard at once, outside the look-ahead, and remembered so the passers-by
+   * can answer. Ignored unless the street is moving. Returns whether the clap counted.
+   */
+  clap(beat) {
+    if (this.status !== 'running' || !this.mixer || !this.claps.add(beat, this.now() / 1000)) return false;
+    this.play(this.mixer, clapNote(beat), this.context.currentTime + 0.005);
+    return true;
   }
   async ensureAudio() {
     if (this.context) return;
@@ -126,7 +137,11 @@ export class Transport {
     const now = this.context.currentTime,
       horizon = this.heldBeat + beatsFromSeconds(now + CONFIG.audioLookahead - this.epoch);
     if (horizon <= this.cursor) return;
-    for (const note of notesBetween(this.cursor, horizon)) {
+    // The crowd's answer to the clapping is scheduled like the score, from the claps known so far.
+    for (const note of [
+      ...notesBetween(this.cursor, horizon),
+      ...responseBetween(this.cursor, horizon, this.claps.beats),
+    ]) {
       // Sent early by the mix chain's own delay, so the note is heard on the beat the picture shows.
       const scheduled = this.epoch + (note.beat - this.heldBeat) * SECONDS_PER_BEAT - this.latency;
       // A note that is already audibly late is dropped rather than smeared onto the wrong beat.
@@ -168,6 +183,7 @@ export class Transport {
     await this.pause();
     this.heldBeat = Math.max(0, Number.isFinite(beat) ? beat : 0);
     this.lastBeat = this.heldBeat;
+    this.claps.dropAfter(this.heldBeat);
     if (running) await this.resume();
   }
   setVolume(value) {
@@ -186,8 +202,11 @@ export class Transport {
     this.mixer?.setAudible(this.scoreAudible);
   }
   diagnostics() {
+    const frame = this.sample();
     return {
-      ...this.sample(),
+      ...frame,
+      claps: this.claps.size,
+      groove: +groove(frame.beat, this.claps.beats).toFixed(3),
       syncMode: this.syncMode,
       music: this.reference?.diagnostics() ?? { mode: 'score' },
       scoreAudible: this.scoreAudible,

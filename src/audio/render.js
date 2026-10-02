@@ -10,9 +10,9 @@ const LEAD_IN = 0.05;
 /**
  * Renders a span of the score offline through the same mixer and instruments as live playback, so review audio
  * is exact and repeatable. Beats are absolute; the render starts LEAD_IN seconds before `from`. `stems` solos
- * those stems, for balancing the mix.
+ * those stems, for balancing the mix. `extra` notes (the crowd's answer to clapping) play beside the score.
  */
-export async function renderScore(from, to, { sampleRate = 48000, tail = 2.5, stems = STEMS } = {}) {
+export async function renderScore(from, to, { sampleRate = 48000, tail = 2.5, stems = STEMS, extra = [] } = {}) {
   const length = Math.ceil(((to - from) * SECONDS_PER_BEAT + LEAD_IN + tail) * sampleRate);
   await prepareTones();
   const latency = await measureLatency(sampleRate),
@@ -21,7 +21,7 @@ export async function renderScore(from, to, { sampleRate = 48000, tail = 2.5, st
   mixer.setVolume(1);
   for (const stem of STEMS) mixer.setStemEnabled(stem, stems.includes(stem), { immediate: true });
   // Compensated exactly as in live playback, so the metrics describe what a listener hears.
-  for (const note of notesBetween(from, to))
+  for (const note of [...notesBetween(from, to), ...extra])
     playNote(mixer, note, LEAD_IN + (note.beat - from) * SECONDS_PER_BEAT - latency);
   return context.startRendering();
 }

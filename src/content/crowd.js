@@ -136,6 +136,7 @@ export const CROWD = Object.freeze(
 );
 
 const mix = (a, b, t) => a + (b - a) * t;
+const mix3 = (a, b, t) => a.map((v, i) => mix(v, b[i], t));
 const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
 const turn = (from, to, t) => from + wrap(to - from) * t;
 const hermite = (p0, m0, p1, m1, u) =>
@@ -299,7 +300,46 @@ export function crowdLayout(beat) {
   return CROWD.map(person => crowdState(person, beat));
 }
 
-export function crowdPose(person, beat, state = crowdState(person, beat), wardrobe = wardrobeAt(beat)) {
+/**
+ * The passers-by answer the visitor's clapping (content/response.js): anyone standing dips and stamps with each
+ * clap from the moment they are in view; those who have noticed him, or walk beside him, bring their hands
+ * together on the crowd's own clap beats. People on the viewer's side of the street answer first, so the rhythm
+ * seems to travel from the viewer across the road.
+ */
+function answerClapping(p, state, response) {
+  const nearness = smooth((2 - state.x) / 10);
+  if (state.stand > 0 && response.pulse > 0) {
+    // A stamp: the weight drops, the head nods, one foot lifts to come down with it.
+    const stamp = response.pulse * state.stand * (0.55 + 0.45 * nearness);
+    p.hip[1] -= 0.07 * stamp;
+    p.head[0] += 0.5 * stamp;
+    p.chest[0] += 0.08 * stamp;
+    p.rightFoot[1] += 0.12 * stamp;
+  }
+  // The wall side takes the clap up at a light groove, the window side only once it is kept up. A stander who
+  // has noticed him claps fully; someone walking in or beside him claps as far as they have joined the dance.
+  const share = smooth((response.groove - 0.45 * (1 - nearness)) / 0.45),
+    engagement = state.stand > 0 ? smooth(state.participation / 0.1) : state.participation,
+    meet = response.meet * share * engagement;
+  if (meet > 0) {
+    // Palms meet before the chest; the elbows keep their backward poles, out to the sides.
+    const y = p.hip[1] + 0.3;
+    p.leftHand = mix3(p.leftHand, [0.05, y, 0.3], meet);
+    p.rightHand = mix3(p.rightHand, [-0.05, y, 0.3], meet);
+    p.leftArmWalk *= 1 - meet;
+    p.rightArmWalk *= 1 - meet;
+    p.chest[0] += 0.05 * meet;
+  }
+}
+
+/** With `response` absent or silent, the pose is exactly the authored one; the answer is only ever added. */
+export function crowdPose(
+  person,
+  beat,
+  state = crowdState(person, beat),
+  wardrobe = wardrobeAt(beat),
+  response = null,
+) {
   const footBeat = state.distance / WALK + person.index * 0.13;
   let body = sampleWalk(footBeat, { social: false });
   const stepping = [walkFoot(footBeat, 1), walkFoot(footBeat, -1)];
@@ -343,6 +383,7 @@ export function crowdPose(person, beat, state = crowdState(person, beat), wardro
     p.leftHand[1] += 0.22 * flourish * state.participation;
     p.chest[2] += 0.08 * flourish;
   }
+  if (response && (response.pulse > 0 || response.meet > 0)) answerClapping(p, state, response);
   if (state.wave) {
     p.rightArmWalk *= 1 - state.wave;
     const target = [-0.55 - 0.1 * Math.sin(beat * Math.PI * 2), 1.86, 0.1];

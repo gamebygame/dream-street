@@ -2,6 +2,37 @@
 
 > Working record kept in Chinese, the language the decisions were made in. For an English overview, see [README.md](../README.md).
 
+## 拍手原型 · 2026-10-02
+
+本节只记录 2026-10-02 在分支 `claude/game-playable-interaction-d15586` 上实际执行并读回的检查。设计与否决的替代方案见 `docs/INTENT.md` 第六节。
+
+### 跑过的检查
+
+| 检查 | 结果 |
+| --- | --- |
+| `npm test` | 61 项单元测试通过（新增 `response.test.js` 9 项、transport 1 项、anatomy 1 项） |
+| `npm run test:browser`（`DREAM_STREET_URL=http://127.0.0.1:5174`，开发服务器从本 worktree 启动；5173 上是另一检出的服务器） | 14 项通过（新增 `clap.spec.js` 2 项：输入计数与控件焦点；零输入时人群实例矩阵校验和与基线相同、拍手后不同、清空记录后恢复相同；向后 seek 丢弃拍手；花间不回应） |
+| 格式检查（跟踪文件 + 新文件）、`npm run build` | 通过 |
+| `scripts/review-frames.mjs --label clap-prototype` | 有／无拍手对照帧已生成到 `artifacts/review/clap-prototype/`：第 113、115 拍全景与 passer-1 特写，第 68 拍 passer-15、第 72／74 拍 passer-33 的街角特写，第 76 拍全景 |
+| `scripts/render-music.mjs --label clap-prototype` | 新增 `daylight-clapping`（60–80 拍每拍拍手）与 `pocket-clapping` 两段。`daylight-clapping` 中四记重击的 `louderThan` 为 1、0.992、1、0.988，与无拍手的 `daylight` 完全相同：**街角提前开始的 stamp-stamp-clap 没有改变四连是本章最响的事实** |
+| 渲染器探针（Playwright，`artifacts/probe/probe-response.mjs`） | 第 68 拍 passer-15：拍手后头部世界坐标下移 0.05、前移 0.01（点头与下沉）；第 113 拍 passer-1 与 passer-6（远侧）：左右手世界坐标相距 0.08，同高同深（合掌）；70–80 拍离线渲染：有拍手时 RMS −18.61 对 −18.65 dB，短时 RMS p50 −16.42 对 −16.62 dB，回应音符确实在而且很轻 |
+
+### 过程中修掉的两个问题
+
+- 合并连按的窗口原先按拍号衡量。刚恢复播放的约 100 ms 里可听拍号停在原地（调度提前量加输出延迟），两次相隔 200 ms 的真实拍手会被当作一次。现在按墙上时钟（0.12 s）合并，拍号只负责记录与重放；浏览器用例曾因此失败，修正后通过。
+- 点击「开始前行」后，若焦点仍留在被隐藏的开始按钮上，空格会再次按下按钮而不是拍手。`play()` 现在在隐藏入口后让按钮失焦。探针显示 Chrome 本已把焦点移到 body，这一行是对其他浏览器的防护。
+
+### 没有做的事
+
+- 没有听过任何声音：`clap` 声部是否像一双手、是否仍带鼓机味，以及 72–80 拍街角先于鼓组开始的节奏能否被听出，都未经试听。
+- 没有测量键盘／触摸事件到耳朵的总延迟；混音链 6 ms 的测量值不包含设备输出。
+- 没有跑 `npm run capture` 的浸泡（脚本已加入录像结束后每 0.5 s 一次的拍手与 `clapped`、`clapsForgotten` 两项检查，但本轮未执行）。
+- 没有在原生 Safari、真实手机、Intel Mac 上验证。
+
+### 当晚的第二轮（Jovi 试后："没有什么玩法"）
+
+原本回应从第 66 拍起、只有已注意到他的站立者参与，所以开头 31 秒按空格只有一声很轻的拍手。改为：街上任何站着的人从入画起就跟着拍手跺脚（24–144 拍，四连窗口 48–60 除外）；拍手声部加大；页脚状态点在每次有效拍手时跳一下。单元测试、浏览器测试、格式检查与构建在改动后重新跑过，结果见上表（数量不变）。
+
 ## 0.6.0 · 开源收尾 · 2026-10-01
 
 本节只记录 2026-10-01 实际执行并读回的检查。

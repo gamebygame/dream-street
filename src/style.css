@@ -41,6 +41,8 @@ button {
   position: absolute;
   inset: 0;
   overflow: hidden;
+  /* Taps on the street are claps; no double-tap zoom delay between them. */
+  touch-action: manipulation;
 }
 #stage canvas {
   display: block;
@@ -213,6 +215,17 @@ h1 span {
 }
 .status-dot.running {
   background: #386f5c;
+}
+.status-dot.clap {
+  animation: clap-pulse 0.28s ease-out;
+}
+@keyframes clap-pulse {
+  from {
+    transform: scale(2.6);
+  }
+  to {
+    transform: scale(1);
+  }
 }
 .playback {
   display: flex;

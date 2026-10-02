@@ -3,6 +3,7 @@ import { CONFIG } from '../config.js';
 import { AssetCache, createActor } from '../character/rig.js';
 import { sampleWalk, sampleDance } from '../character/pose.js';
 import { sampleScene, ContactTracker } from '../content/plan.js';
+import { responseAt } from '../content/response.js';
 import { Street } from '../world/street.js';
 import { Crowd } from '../world/crowd.js';
 import { Cyclists } from '../world/cyclists.js';
@@ -56,6 +57,9 @@ export class ExperienceRenderer {
     this.lastFrameTime = null;
     this.frameCount = 0;
     this.contactTracker = new ContactTracker();
+    // The transport's clap log, once there is a transport; without one the passers-by never answer.
+    this.claps = null;
+    this.response = responseAt(0, []);
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
     this.renderer.setClearColor('#dedfd0');
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, CONFIG.pixelRatioLimit));
@@ -201,7 +205,8 @@ export class ExperienceRenderer {
     this.walker.applyPose(sampleWalk(beat));
     this.dancer.setWardrobe(this.sample.wardrobe);
     this.dancer.applyPose(sampleDance(beat, this.sample.wardrobe));
-    this.crowd.update(beat, this.sample.wardrobe);
+    this.response = responseAt(beat, this.claps ? this.claps.beats : []);
+    this.crowd.update(beat, this.sample.wardrobe, this.response);
     this.cyclists.update(beat, this.sample.wardrobe);
     if (this.inspect) this.aimInspection();
     this.renderer.info.reset();
@@ -249,6 +254,7 @@ export class ExperienceRenderer {
       actors: 2,
       crowd: this.crowd.visibleCount,
       crowdResources: this.crowd.diagnostics(),
+      response: this.response,
       cyclists: this.cyclists.diagnostics(),
       streetPool: this.street.cycles.length,
       contactCache: this.contactTracker.recent.length,

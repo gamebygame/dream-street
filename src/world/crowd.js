@@ -52,7 +52,8 @@ export class Crowd {
     this.group.add(this.shadows);
     this.shadowTransform = new THREE.Object3D();
   }
-  update(beat, wardrobe) {
+  /** `response` is the passers-by's answer to the visitor's clapping (content/response.js); absent, nothing changes. */
+  update(beat, wardrobe, response = null) {
     for (const batch of this.batches.values()) batch.mesh.count = 0;
     this.visibleCount = 0;
     this.shadows.count = 0;
@@ -65,7 +66,7 @@ export class Crowd {
       this.screenPoint.set(state.x, 1, state.z).project(this.camera);
       if (Math.abs(this.screenPoint.x) < 1 && Math.abs(this.screenPoint.y) < 1) this.visibleCount++;
       actor.root.position.set(state.x, state.y, state.z);
-      actor.applyPose(crowdPose(person, beat, state, wardrobe));
+      actor.applyPose(crowdPose(person, beat, state, wardrobe, response));
       for (const { object, batch, color } of parts) {
         const index = batch.mesh.count++;
         batch.mesh.setMatrixAt(index, object.matrixWorld);

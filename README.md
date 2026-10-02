@@ -22,6 +22,8 @@ npm ci
 npm run dev
 ```
 
+Once the street is moving you can clap along: Space, or a tap on the street. Each clap is heard at once, and the passers-by take the rhythm up as far as you keep it, while the man, his reflection and the band go on exactly as they would. Nothing is scored, and watching without clapping is the whole piece.
+
 Hiding the page pauses it; press continue (继续) when you come back. Mute only changes the volume. The development and preview servers listen on `127.0.0.1` only.
 
 ## Repository boundary

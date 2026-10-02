@@ -199,3 +199,36 @@ test('a silenced score keeps scheduling so a comparison returns on the same beat
   assert.equal(f.mixer.audible, true);
   await f.transport.dispose();
 });
+test('a clap is heard at once while running, a held key is one clap, and the crowd answers from the claps so far', async () => {
+  const f = fixture();
+  assert.equal(f.transport.clap(0), false, 'nothing before the street moves');
+  await f.transport.seek(70);
+  await f.transport.resume();
+  f.advance(0.5);
+  const count = f.mixer.played.length,
+    beat = f.transport.sample().beat;
+  assert.equal(f.transport.clap(beat), true);
+  assert.equal(f.transport.clap(beat + 0.01), false, 'a second hit within 120 ms is the same clap');
+  const live = f.mixer.played.slice(count);
+  assert.equal(live.length, 1);
+  assert.equal(live[0].note.inst, 'clap');
+  assert.ok(Math.abs(live[0].when - (f.context.currentTime + 0.005)) < 1e-9, 'heard now, outside the look-ahead');
+  // Clapping on every beat through the gateway: the corner's stomps are scheduled like the score, ahead of time.
+  // Time advances in scheduler-sized steps, as it does live; one big step would make every note late.
+  for (let b = beat + 0.5; b < 80; b += 1) f.transport.claps.add(b);
+  for (let i = 0; i < 60; i++) f.advance(0.1);
+  const answered = f.mixer.played.filter(p => p.note.id.startsWith('response:'));
+  assert.ok(
+    answered.some(p => p.note.inst === 'stomp' && p.note.beat === 76),
+    'the stamp before the kit',
+  );
+  assert.ok(answered.every(p => p.note.beat >= 72 && p.note.beat < 144));
+  assert.ok(f.mixer.played.filter(p => p.note.beat === 76).some(p => !p.note.id.startsWith('response:')));
+  assert.equal(f.transport.diagnostics().claps, f.transport.claps.size);
+  assert.ok(f.transport.diagnostics().groove >= 0);
+  await f.transport.pause();
+  assert.equal(f.transport.clap(f.transport.sample().beat), false, 'nothing while paused');
+  await f.transport.seek(10);
+  assert.equal(f.transport.claps.size, 0, 'a backward seek forgets claps that have not happened yet');
+  await f.transport.dispose();
+});
