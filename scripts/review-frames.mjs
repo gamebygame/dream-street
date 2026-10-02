@@ -32,6 +32,16 @@ const SHOTS = [
   { kind: 'cyclist', index: 0, zoom: 7, beats: [66, 72, 75, 78, 84] },
   { kind: 'cyclist', index: 1, zoom: 7, beats: [184, 190, 193, 197, 204] },
   { kind: 'scene', beats: [60, 66, 72, 78, 84, 90, 96, 102, 108] },
+  // The crowd's answer to clapping, against the same beats without it: a corner stander as the clapping starts,
+  // and the people beside him on the crowd's own clap beats. `claps` fills the log for the eight beats before.
+  { kind: 'crowd', index: 14, zoom: 7, beats: [68, 68.1] },
+  { kind: 'crowd', index: 14, zoom: 7, beats: [68, 68.1], claps: true },
+  { kind: 'crowd', index: 32, zoom: 7, beats: [72, 74] },
+  { kind: 'crowd', index: 32, zoom: 7, beats: [72, 74], claps: true },
+  { kind: 'crowd', index: 0, beats: [113, 114, 115] },
+  { kind: 'crowd', index: 0, beats: [113, 114, 115], claps: true },
+  { kind: 'scene', beats: [76, 113, 115] },
+  { kind: 'scene', beats: [76, 113, 115], claps: true },
 ];
 
 await mkdir(destination, { recursive: true });
@@ -52,8 +62,16 @@ try {
       shot,
     );
     for (const beat of shot.beats) {
-      await page.evaluate(b => window.__dreamStreet.seek(b), beat);
-      const name = `${shot.kind}${shot.index === undefined ? '' : '-' + shot.index}${shot.zoom ? '-wide' : ''}-${beat}.png`;
+      await page.evaluate(
+        ({ b, claps }) => {
+          const log = window.__dreamStreet.transport.claps;
+          log.clear();
+          if (claps) for (let c = b - 8; c <= b; c += 1) log.add(c);
+          return window.__dreamStreet.seek(b);
+        },
+        { b: beat, claps: Boolean(shot.claps) },
+      );
+      const name = `${shot.kind}${shot.index === undefined ? '' : '-' + shot.index}${shot.zoom ? '-wide' : ''}-${beat}${shot.claps ? '-clapping' : ''}.png`;
       await page.locator('#stage canvas').screenshot({ path: resolve(destination, name) });
     }
   }

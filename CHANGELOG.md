@@ -10,6 +10,7 @@ All notable changes to Dream Street are documented here. The format follows [Kee
 
 ### Added
 
+- You can clap along: Space, or a tap on the street. Each clap is heard at once as one pair of hands, and the passers-by take the rhythm up as far as you keep it: whoever is standing on the street stamps with your claps, the few at the corner start the stamp-stamp-clap before the band does, and the people walking beside him bring their hands together on the crowd's own clap beats. The man, his reflection and the score never change, nothing is scored, and with no clapping the piece is exactly as before.
 - A release workflow builds each version tag and publishes its GitHub release with the built site as `.zip` and `.tar.gz`, each with the licence, plus SHA-256 checksums and signed build provenance. The 0.6.0 release received the same assets.
 
 ## [0.6.0] - 2026-10-01

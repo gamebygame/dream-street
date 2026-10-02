@@ -17,6 +17,7 @@ Instructions for coding agents working in this repository. People should start w
 ## Invariants that code must keep
 
 - The scene is a pure function of the beat. `sampleScene`, `wardrobeAt`, `sampleDance`, `crowdState`, `cyclistState` and the score's `notesBetween` keep no hidden state, so seeking to any beat reproduces it exactly.
+- The visitor's only input is a clap (`Transport.clap`, `src/content/response.js`). The passers-by's answer, in the picture (`crowdPose`'s `response`) and in the scheduled notes (`responseBetween`), is a pure function of the beat and a bounded log of clap beats; a backward seek forgets claps that have not happened yet. The man, the reflection, the score and the passers-by's positions never depend on it, and with no clapping the output is identical to the authored one. Keep it that way: the answer is only ever added, never a change.
 - There is one tempo (`CONFIG.bpm`, 128) and one clock (`Transport`). The picture samples the AudioContext's output time; `Transport.sample()` only observes and `tick()` is the only place the beat advances. The mixer's latency is measured and notes are scheduled that much earlier.
 - The score's chapters are the street's `THEMES`. The four-hit accents (`FOUR_HITS`, beats 50, 52, 54 and 56) are stop-time band hits and must stay the loudest moments of their chapter. Every beat carries an audible pulse.
 - Arm IK poles point backward, outward and down (`ELBOW_POLES`). An arm given the knee's forward pole is what produced the "zombie arms"; `tests/unit/anatomy.test.js` guards against it.

@@ -136,3 +136,22 @@ test('each four-hit accent lands on its beat in a finished garment and its own s
     assert.ok(signatures[i](pose), `accent ${i + 1} at beat ${hit} misses its signature pose`);
   }
 });
+
+test('passers-by answering the clapping keep natural elbows while their palms meet before the chest', () => {
+  const cache = new AssetCache(),
+    samples = [],
+    // Held at full strength the whole time: the most extreme the answer can be.
+    response = { groove: 1, pulse: 1, meet: 1 };
+  for (const index of [0, 2, 7, 11, 13, 14, 19, 22, 31, 35]) {
+    const person = CROWD[index],
+      actor = createActor(cache, { ...person, outfitIds: [person.outfit], accessories: false });
+    for (let beat = 66; beat < 144; beat += 0.5) {
+      const state = crowdState(person, beat);
+      if (!state.visible) continue;
+      actor.applyPose(crowdPose(person, beat, state, wardrobeAt(beat), response));
+      samples.push(...arms(actor));
+    }
+  }
+  assertNoZombieReach('answering passers-by', samples);
+  cache.dispose();
+});

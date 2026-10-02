@@ -97,7 +97,9 @@ try {
       errors.push(error.message);
     }
   }, 20_000);
-  let metadata;
+  let metadata,
+    clapping,
+    clapsAccepted = 0;
   try {
     metadata = await recording;
     const download = page.waitForEvent('download');
@@ -111,9 +113,17 @@ try {
     await (
       await download
     ).saveAs(resolve(destination, metadata.hasAudio ? 'dream-street.webm' : 'dream-street-silent.webm'));
+    // After the recording, the rest of the soak claps along twice a second, so the answer's voices are exercised.
+    clapping = setInterval(() => {
+      page
+        .evaluate(() => window.__dreamStreet.clap())
+        .then(counted => counted && clapsAccepted++)
+        .catch(error => errors.push(error.message));
+    }, 500);
     await wait(Math.max(0, soakSeconds * 1000 - (Date.now() - started)));
   } finally {
     clearInterval(cadence);
+    clearInterval(clapping);
   }
   const final = await page.evaluate(() => window.__dreamStreet.snapshot());
   await page.evaluate(() => window.__dreamStreet.pause());
@@ -133,11 +143,15 @@ try {
     boundedVoices: samples.every(s => s.audio.activeVoices < 400),
     correctSource: samples.every(s => s.audio.music.mode === (silent ? 'silent' : 'score')),
     recordedAudio: silent || metadata.hasAudio === true,
+    // The clapping after the recording was taken up, and released with everything else on pause.
+    clapped: soakSeconds - metadata.seconds < 10 || clapsAccepted > 0,
+    clapsForgotten: paused.audio.claps <= 64,
   };
   const report = {
     info,
     node: process.version,
     soakSeconds: (Date.now() - started) / 1000,
+    clapsAccepted,
     recording: metadata,
     samples,
     final,

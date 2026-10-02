@@ -446,6 +446,26 @@ const crowd = {
     room.connect(v.mixer.input('crowd'));
     v.room(room, 0.35);
   },
+  /**
+   * One pair of hands, the visitor's own clap: the palms' hollow knock and, a few milliseconds behind it, the
+   * fingers' slap, from the viewer's side of the room. `soft` is for the four-hit and the flowers.
+   */
+  clap(v, note) {
+    const soft = note.params?.soft,
+      room = v.gain(1);
+    for (const [frequency, q, share, decay, delay] of [
+      [soft ? 650 : 820, 1.1, soft ? 0.55 : 0.85, soft ? 0.05 : 0.065, 0],
+      [soft ? 1700 : 2300, 1.4, soft ? 0.32 : 0.6, 0.022, 0.004],
+    ]) {
+      const noise = v.noise(),
+        band = v.filter('bandpass', frequency, q),
+        level = v.gain();
+      v.hit(level, note.vel * share, decay, v.when + delay, 0.0015);
+      v.chain(noise, band, level, room);
+    }
+    v.chain(room, v.pan(-0.12), v.mixer.input('crowd'));
+    v.room(room, soft ? 0.2 : 0.3);
+  },
 };
 
 const INSTRUMENTS = { ...drums, ...tonal, ...crowd };
