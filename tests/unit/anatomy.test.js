@@ -6,6 +6,7 @@ import { sampleDance, sampleWalk } from '../../src/character/pose.js';
 import { FOUR_HITS, wardrobeAt } from '../../src/content/plan.js';
 import { CROWD, crowdPose, crowdState } from '../../src/content/crowd.js';
 import { CYCLISTS, cyclistPose, cyclistState } from '../../src/content/cyclists.js';
+import { applyExpression, ExpressionInput } from '../../src/character/expression.js';
 
 const shoulder = new THREE.Vector3(),
   elbow = new THREE.Vector3(),
@@ -74,6 +75,22 @@ test('walking arms hang and swing low with elbows behind the body line', () => {
     assert.ok(s.handBelowShoulder > 0.38, `walking hand rose to ${s.handBelowShoulder.toFixed(2)} below the shoulder`);
     assert.ok(s.lift < (30 * Math.PI) / 180, `walking upper arm lifted ${((s.lift * 180) / Math.PI).toFixed(1)}°`);
   }
+  cache.dispose();
+});
+
+test('player expression keeps natural elbows across wardrobe and prop changes', () => {
+  const cache = new AssetCache(),
+    dancer = createActor(cache, { transitions: true }),
+    samples = [];
+  for (let beat = 0.25; beat < 256; beat += 0.25) {
+    const input = new ExpressionInput(),
+      wardrobe = wardrobeAt(beat);
+    input.add(beat - 0.2);
+    dancer.setWardrobe(wardrobe);
+    dancer.applyPose(applyExpression(sampleDance(beat, wardrobe), beat, wardrobe, input.events));
+    samples.push(...arms(dancer));
+  }
+  assertNoZombieReach('expressive dancer', samples);
   cache.dispose();
 });
 

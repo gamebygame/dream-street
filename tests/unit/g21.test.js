@@ -151,7 +151,13 @@ test('bicycle feet reach the pedals, the steering hand stays on the bar and whee
 test('the original score is the default source and the reference recording never claims synchronization', async () => {
   const reference = new ReferenceMusic();
   assert.equal(reference.mode, 'score');
-  assert.deepEqual(reference.diagnostics(), { mode: 'score', status: 'idle', synchronized: true, capturable: true });
+  assert.deepEqual(reference.diagnostics(), {
+    mode: 'score',
+    requestedMode: 'score',
+    status: 'idle',
+    synchronized: true,
+    capturable: true,
+  });
   await reference.select('silent');
   assert.equal(reference.mode, 'silent');
   await assert.rejects(reference.select('youtube'));

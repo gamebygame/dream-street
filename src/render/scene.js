@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { CONFIG } from '../config.js';
 import { AssetCache, createActor } from '../character/rig.js';
 import { sampleWalk, sampleDance } from '../character/pose.js';
+import { ExpressionInput, applyExpression, sampleExpression } from '../character/expression.js';
 import { sampleScene, ContactTracker } from '../content/plan.js';
 import { Street } from '../world/street.js';
 import { Crowd } from '../world/crowd.js';
@@ -34,7 +35,7 @@ function glass(target) {
         float luminance=dot(reflected,vec3(.2126,.7152,.0722));
         reflected=mix(reflected,vec3(luminance),.18);
         reflected=mix(reflected,tint*.62+vec3(luminance)*.38,.17);
-        float imageAlpha=actor.a*mix(.68,.81,smoothstep(.05,.65,glassUV.y));
+        float imageAlpha=actor.a*mix(.78,.9,smoothstep(.05,.65,glassUV.y));
         float diagonal=glassUV.x+glassUV.y*.42;
         float skyBand=smoothstep(.24,.43,diagonal)*(1.-smoothstep(.48,.68,diagonal));
         float sheen=.065+.09*skyBand+.025*smoothstep(.55,1.,glassUV.y);
@@ -56,6 +57,7 @@ export class ExperienceRenderer {
     this.lastFrameTime = null;
     this.frameCount = 0;
     this.contactTracker = new ContactTracker();
+    this.expression = new ExpressionInput();
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
     this.renderer.setClearColor('#dedfd0');
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, CONFIG.pixelRatioLimit));
@@ -125,7 +127,6 @@ export class ExperienceRenderer {
   setInspect(inspect) {
     this.inspect = inspect ? { viewHeight: 3.6, index: 0, ...inspect } : null;
     this.resize();
-    this.render(this.sample.beat, false);
   }
   aimInspection() {
     const { kind, index } = this.inspect,
@@ -161,6 +162,8 @@ export class ExperienceRenderer {
     const size = this.renderer.getDrawingBufferSize(new THREE.Vector2());
     this.target.setSize(size.x, size.y);
     this.viewport = { width, height, dpr: this.renderer.getPixelRatio() };
+    // Changing the drawing buffer clears it, including while the transport is paused.
+    if (this.sample) this.render(this.sample.beat, false);
   }
   async warmup() {
     for (const id of ['old', 'jacket', 'sport', 'coat', 'open']) {
@@ -200,7 +203,9 @@ export class ExperienceRenderer {
     this.street.update(this.sample.travelS);
     this.walker.applyPose(sampleWalk(beat));
     this.dancer.setWardrobe(this.sample.wardrobe);
-    this.dancer.applyPose(sampleDance(beat, this.sample.wardrobe));
+    this.dancer.applyPose(
+      applyExpression(sampleDance(beat, this.sample.wardrobe), beat, this.sample.wardrobe, this.expression.events),
+    );
     this.crowd.update(beat, this.sample.wardrobe);
     this.cyclists.update(beat, this.sample.wardrobe);
     if (this.inspect) this.aimInspection();
@@ -230,6 +235,11 @@ export class ExperienceRenderer {
       ...this.sample,
       ...this.lastRender,
       viewport: this.viewport,
+      expression: {
+        enabled: this.expression.enabled,
+        events: this.expression.events,
+        ...sampleExpression(this.sample.beat, this.expression.events),
+      },
       frameCount: this.frameCount,
       p50: percentile(0.5),
       p95: percentile(0.95),

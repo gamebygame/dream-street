@@ -10,6 +10,10 @@ export const FOUR_HITS = Object.freeze([50, 52, 54, 56]);
 export const REVEAL_BEATS = Object.freeze({ change: 1.8, fourHit: 0.5, recovery: 2.2 });
 /** Cycle-local span of the four-hit phrase: two beats of preparation before the first accent, four after the last. */
 export const FOUR_HIT_WINDOW = Object.freeze({ start: FOUR_HITS[0] - 2, end: FOUR_HITS.at(-1) + 4 });
+/** The garment remains clear until contact, then briefly yields contrast to its moving reflection. */
+export function mannequinOpacity(age) {
+  return 1 - 0.82 * smooth(age / 0.4) * (1 - smooth((age - 2.8) / 1.4));
+}
 export const ACCESSORIES = Object.freeze([
   'scarf',
   'watch',

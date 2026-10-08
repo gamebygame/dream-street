@@ -231,6 +231,55 @@ function fourHitWeight(beat) {
   return smooth(local) * (1 - smooth(local - length + 1));
 }
 
+// Three bounded studies, not an outfit upgrade ladder. Jacket: gather, open, linger. Sport: compress, release,
+// recover twice. Old clothes: a grounded, unhurried sweep with the same confidence after the bright garments go.
+// prettier-ignore
+const JACKET_STUDY = [
+  [0,pose({})],
+  [1.1,pose({hip:[-.06,.87,0],chest:[.10,-.18,.06],leftHand:[.28,1.12,.32],rightHand:[-.21,1.22,.35]})],
+  [2,pose({hip:[.06,.92,0],yaw:.18,chest:[-.08,.24,-.08],leftHand:[.70,1.47,.10],rightHand:[-.32,.78,-.08],leftFoot:[.28,.095,.13],rightFoot:[-.20,.095,-.10]})],
+  [2.7,pose({hip:[.06,.92,0],yaw:.18,chest:[-.075,.22,-.08],leftHand:[.68,1.45,.12],rightHand:[-.32,.78,-.08],leftFoot:[.28,.095,.13],rightFoot:[-.20,.095,-.10]})],
+  [4.1,pose({hip:[-.07,.90,0],yaw:-.24,chest:[-.04,-.18,.08],leftHand:[.33,.79,-.08],rightHand:[-.67,1.31,.16],leftFoot:[.18,.095,-.08],rightFoot:[-.30,.095,.14]})],
+  [4.8,pose({hip:[-.07,.90,0],yaw:-.24,chest:[-.04,-.16,.08],leftHand:[.33,.79,-.08],rightHand:[-.65,1.28,.18],leftFoot:[.18,.095,-.08],rightFoot:[-.30,.095,.14]})],
+  [6.4,pose({chest:[.06,0,0],leftHand:[.34,.84,.12],rightHand:[-.34,.84,.12]})],
+];
+// prettier-ignore
+const SPORT_STUDY = [
+  [0,pose({})],
+  [.5,pose({hip:[-.07,.82,0],chest:[.16,-.20,.07],leftHand:[.23,1.10,.32],rightHand:[-.24,1.05,.30]})],
+  [.85,pose({hip:[.08,.92,0],chest:[-.12,.26,-.12],leftHand:[.64,1.32,.16],rightHand:[-.42,.89,.08],leftFoot:[.32,.095,.13],rightFoot:[-.16,.095,-.13]})],
+  [1.15,pose({hip:[.08,.91,0],chest:[-.10,.23,-.10],leftHand:[.61,1.28,.18],rightHand:[-.42,.89,.08],leftFoot:[.32,.095,.13],rightFoot:[-.16,.095,-.13]})],
+  [1.6,pose({hip:[.04,.83,0],chest:[.13,.16,-.05],leftHand:[.23,1.03,.30],rightHand:[-.24,1.10,.32]})],
+  [2,pose({hip:[-.09,.91,0],chest:[-.11,-.26,.12],leftHand:[.42,.88,.10],rightHand:[-.68,1.35,.14],leftFoot:[.16,.095,-.12],rightFoot:[-.32,.095,.14]})],
+  [2.25,pose({hip:[-.09,.90,0],chest:[-.08,-.22,.10],leftHand:[.42,.88,.10],rightHand:[-.63,1.29,.17],leftFoot:[.16,.095,-.12],rightFoot:[-.32,.095,.14]})],
+  [2.7,pose({chest:[.05,0,0],leftHand:[.32,.83,.12],rightHand:[-.32,.83,.12]})],
+];
+// prettier-ignore
+const OLD_STUDY = [
+  [0,pose({hip:[-.04,.87,0],chest:[.09,-.12,.04],leftHand:[.28,.85,.20],rightHand:[-.26,1.08,.29]})],
+  [1.4,pose({hip:[-.08,.86,0],yaw:-.16,chest:[.08,-.18,.06],leftHand:[.28,.86,.23],rightHand:[-.24,1.17,.32]})],
+  [2.6,pose({hip:[.06,.94,0],yaw:.16,chest:[-.11,.20,-.08],head:[-.06,.12,0],leftHand:[.75,1.42,.10],rightHand:[-.55,1.08,.08],leftFoot:[.29,.095,.11],rightFoot:[-.24,.095,-.11]})],
+  [3.4,pose({hip:[.06,.935,0],yaw:.16,chest:[-.09,.18,-.06],head:[-.05,.10,0],leftHand:[.72,1.39,.12],rightHand:[-.54,1.06,.10],leftFoot:[.29,.095,.11],rightFoot:[-.24,.095,-.11]})],
+  [5,pose({hip:[-.06,.92,0],yaw:-.24,chest:[-.08,-.18,.08],head:[-.04,-.16,0],leftHand:[.42,.90,.10],rightHand:[-.73,1.42,.12],leftFoot:[.22,.095,-.10],rightFoot:[-.30,.095,.13]})],
+  [5.8,pose({hip:[-.06,.92,0],yaw:-.24,chest:[-.07,-.16,.07],leftHand:[.42,.90,.10],rightHand:[-.70,1.38,.15],leftFoot:[.22,.095,-.10],rightFoot:[-.30,.095,.13]})],
+  [7.4,pose({hip:[0,.90,0],chest:[-.035,0,0],leftHand:[.36,.86,.08],rightHand:[-.36,.86,.08]})],
+];
+const OUTFIT_STUDIES = {
+  jacket: { start: 18.2, end: 25.1, keys: JACKET_STUDY },
+  sport: { start: 25.1, end: 28, keys: SPORT_STUDY },
+  old: { start: 64, end: 72, keys: OLD_STUDY },
+};
+
+function outfitStudy(p, beat, outfit) {
+  const study = OUTFIT_STUDIES[outfit],
+    local = mod(beat, CONFIG.cycleBeats);
+  if (!study || local <= study.start || local >= study.end) return p;
+  const age = local - study.start,
+    length = study.end - study.start;
+  const weight = smooth(age / 0.6) * (1 - smooth((age - length + 0.6) / 0.6));
+  return blendPose(p, phrase(study.keys, age, length), weight);
+}
+
 function cubic(a, b, c, d, t, leftScale, rightScale) {
   const m1 = (c - a) * leftScale,
     m2 = (d - b) * rightScale;
@@ -323,7 +372,7 @@ function bodyPhrase(beat, theme, outfit) {
   p.coat += 0.1 * pulse;
   p.leftWrist[2] += 0.16 * Math.sin((Math.PI * beat) / 2);
   p.rightWrist[2] -= 0.14 * pulse;
-  return p;
+  return theme === 'daylight' ? outfitStudy(p, beat, outfit) : p;
 }
 function propPhrase(id, beat, age, basePose, tender) {
   const p = { ...basePose };

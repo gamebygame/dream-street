@@ -252,6 +252,38 @@ input[type='range'] {
   min-width: 190px;
   text-align: right;
 }
+.expression-hint {
+  position: absolute;
+  bottom: 82px;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 8px 14px;
+  border-radius: 16px;
+  background: #f9f7edce;
+  color: #516863;
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+#participate[aria-pressed='false'] {
+  color: #6e7c70;
+}
+@media (max-width: 600px) {
+  .controls {
+    height: 100px;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px;
+  }
+  .playback {
+    gap: 9px;
+  }
+  .expression-hint {
+    bottom: 110px;
+    font-size: 11px;
+  }
+}
 .error {
   position: absolute;
   top: 120px;

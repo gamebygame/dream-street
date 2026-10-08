@@ -100,7 +100,7 @@ test('stance feet remain planted in street coordinates including the actor scale
   cache.dispose();
 });
 test('dance phrase joins without a pose discontinuity at entry, exit and garment changes', () => {
-  for (const beat of [...PRODUCTS.map(p => p.beat), 48, 60, 64, 80, 144, 208, 256]) {
+  for (const beat of [...PRODUCTS.map(p => p.beat), 28, 48, 60, 64, 72, 80, 144, 208, 256]) {
     const a = sampleDance(beat - 1e-5),
       b = sampleDance(beat + 1e-5);
     for (const name of ['hip', 'leftHand', 'rightHand', 'leftFoot', 'rightFoot'])

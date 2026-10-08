@@ -32,6 +32,7 @@ function updateControls() {
   pauseButton.disabled = !started || state === 'starting';
   $('#status-dot').classList.toggle('running', state === 'running');
   status.textContent = state === 'running' ? experience.sample.phase : started ? '停一会儿，街道还在。' : '准备好了';
+  $('#expression-hint').hidden = !started || !experience.expression.enabled || experience.sample.beat > 24;
 }
 
 async function play() {
@@ -49,12 +50,15 @@ async function pause() {
 }
 async function seek(beat) {
   await transport.seek(beat);
+  experience.expression.clear();
   experience.contactTracker.seek(beat);
   experience.render(beat, false);
   experience.resetMetrics();
   updateControls();
 }
 function musicStatus(data) {
+  transport?.setScoreAudible(data.mode === 'score');
+  $('#official-shell').hidden = data.mode !== 'reference' && data.requestedMode !== 'reference';
   const names = {
     score: '原创配乐 · 128 BPM',
     reference: 'Ecstatic Vibrations · 对照试听，画面不对齐',
@@ -77,15 +81,35 @@ function musicStatus(data) {
 }
 /** Switching sources never moves the clock: the score keeps time underneath a comparison or silence. */
 async function chooseMusic(mode) {
-  $('#official-shell').hidden = mode !== 'reference';
   try {
-    await reference.select(mode);
-    transport.setScoreAudible(mode === 'score');
+    return await reference.select(mode);
   } catch (error) {
     $('#music-status').textContent = error.message;
     $('#music-panel').hidden = false;
   }
 }
+
+function setParticipation(enabled) {
+  experience.expression.setEnabled(enabled);
+  $('#participate').setAttribute('aria-pressed', String(enabled));
+  $('#participate').textContent = enabled ? '跟一下节奏' : '静静观看';
+  experience.render(transport.sample().beat, false);
+  updateControls();
+}
+
+function express() {
+  if (document.hidden || transport.status !== 'running') return false;
+  // sample() observes the transport's output clock without advancing it.
+  return experience.expression.add(transport.sample().beat);
+}
+
+const isControl = target =>
+  target instanceof Element &&
+  Boolean(
+    target.closest(
+      'button, input, select, textarea, a, [contenteditable]:not([contenteditable="false"]), [role="button"], [role="slider"]',
+    ),
+  );
 
 async function record({ seconds = secondsFromBeats(CONFIG.cycleBeats) + 0.5, fromBeat = 0, visualOnly = false } = {}) {
   if (recording) throw new Error('Already recording.');
@@ -200,6 +224,11 @@ try {
     $('#mute').textContent = transport.muted ? '静音中' : '声音';
   });
   $('#volume').addEventListener('input', event => transport.setVolume(Number(event.target.value)));
+  $('#participate').addEventListener('click', () => setParticipation(!experience.expression.enabled));
+  experience.renderer.domElement.addEventListener('pointerdown', event => {
+    if (!event.isPrimary || event.button !== 0) return;
+    express();
+  });
   $('#about-toggle').addEventListener('click', () => {
     const hidden = !$('#about').hidden;
     $('#about').hidden = hidden;
@@ -217,6 +246,17 @@ try {
     if (document.hidden) pause().catch(showError);
   });
   document.addEventListener('keydown', event => {
+    if (
+      event.code === 'Space' &&
+      !event.repeat &&
+      !event.isComposing &&
+      !event.altKey &&
+      !event.ctrlKey &&
+      !event.metaKey &&
+      !isControl(event.target)
+    ) {
+      if (express()) event.preventDefault();
+    }
     if (event.key === 'Escape' && started) {
       event.preventDefault();
       (transport.status === 'running' ? pause() : play()).catch(showError);
@@ -304,6 +344,8 @@ try {
     seek,
     record,
     chooseMusic,
+    express,
+    setParticipation,
     renderMusic,
     chapters: CHAPTER_SPANS,
     snapshot: () => ({ visual: experience.diagnostics(), audio: transport.diagnostics() }),

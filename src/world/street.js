@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { CONFIG } from '../config.js';
-import { BLOCKS, PRODUCTS, CROSSROADS, displayPosition } from '../content/plan.js';
+import { BLOCKS, PRODUCTS, CROSSROADS, displayPosition, mannequinOpacity } from '../content/plan.js';
 import { createActor, createAccessory, mesh } from '../character/rig.js';
 
 const stone = ['#e6d9c3', '#d7d9c8', '#dfc5ac', '#acc3b7'];
@@ -177,7 +177,14 @@ export class Street {
     model.userData.product = true;
     model.position.set(x - (CONFIG.facadeX - 8), y, z);
     parent.add(model);
-    if (product.outfit) model.add(new THREE.Mesh(this.displayGeometry.get(product.outfit), this.displayMaterial));
+    let displayMaterial = this.displayMaterial;
+    if (product.hit) {
+      displayMaterial = this.displayMaterial.clone();
+      displayMaterial.transparent = true;
+      displayMaterial.depthWrite = false;
+      this.cache.materials.set(`four-display-${this.products.length}`, displayMaterial);
+    }
+    if (product.outfit) model.add(new THREE.Mesh(this.displayGeometry.get(product.outfit), displayMaterial));
     if (product.accessory) {
       const item = createAccessory(this.cache, product.accessory);
       item.position.set(0, 0.95, 0);
@@ -192,7 +199,13 @@ export class Street {
       [0.7, y - 0.12, 0.82],
     );
     this.box(parent, '#ede3c9', [8.47, y - 0.015, z], [0.74, 0.03, 0.88]);
-    this.products.push({ parent: parent.userData.cycleRoot, model, product, contactS: product.beat * 0.6 });
+    this.products.push({
+      parent: parent.userData.cycleRoot,
+      model,
+      product,
+      displayMaterial,
+      contactS: product.beat * 0.6,
+    });
     const line = new THREE.Mesh(
       this.cache.geometry('contact-line', () => new THREE.BoxGeometry(0.015, 3.2, 0.025)),
       this.cache.material('#d73f38'),
@@ -478,6 +491,11 @@ export class Street {
         group = this.cycles[slot];
       group.position.z = cycle * length - travelS;
       group.userData.cycle = cycle;
+    }
+    for (const { parent, product, displayMaterial } of this.products) {
+      if (!product.hit) continue;
+      const age = travelS / CONFIG.distancePerBeat - (parent.userData.cycle * CONFIG.cycleBeats + product.beat);
+      displayMaterial.opacity = mannequinOpacity(age);
     }
   }
   showContacts(show) {
