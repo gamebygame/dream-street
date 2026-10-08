@@ -22,6 +22,8 @@ npm ci
 npm run dev
 ```
 
+Watch the complete performance without doing anything, or press Space / tap the street to add a small upper-body expression to the reflection. The “跟一下节奏 / 静静观看” control turns participation on or off. There is no score, missed beat or unlock; the walker keeps walking.
+
 Hiding the page pauses it; press continue (继续) when you come back. Mute only changes the volume. The development and preview servers listen on `127.0.0.1` only.
 
 ## Repository boundary
@@ -55,12 +57,12 @@ npm run preview
 
 Review tools, with the dev server running:
 
-- **Debug view:** `?debug=1` adds beat jumps, contact lines, per-stem toggles and recording.
+- **Debug view:** `?debug=1` adds beat jumps, contact lines, per-stem toggles, the reference-music comparison and recording. Seeking clears live expression inputs.
 - **Close-ups:** `?debug=1&inspect=walker|dancer|crowd|cyclist&index=N&zoom=3.6` keeps the production camera angle and projection, zoomed in on one character, so arms and elbows can be judged.
-- **Frames at the same beats:** `node scripts/review-frames.mjs --label <name>` saves close-ups and full frames to `artifacts/review/<name>/` for side-by-side comparison between rounds.
+- **Frames at the same beats:** `node scripts/review-frames.mjs --label <name>` saves close-ups and full frames to `artifacts/review/<name>/` for side-by-side comparison between rounds. Add `--study` for the four-hit, outfit studies, and paired watch/input frames at the same beats.
 - **Music renders:** `node scripts/render-music.mjs --label <name>` renders each chapter, the four-hit and the loop seam to WAV in `artifacts/music/<name>/`. It records peak, RMS, crest factor and low-frequency share, and for each four-hit accent its onset error and loudness percentile.
 - **Balance:** `node scripts/balance-music.mjs` solos each stem over each chapter.
-- **Recording and soak:** `npm run capture` records one cycle with the score's audio while soaking. The default soak is 600 s; set `DREAM_STREET_SOAK_SECONDS` to change it. Reports go to `artifacts/capture/`. `DREAM_STREET_MUSIC=silent` gives a silent run for motion checks.
+- **Recording and soak:** `npm run capture` records one cycle with the score's audio while soaking. The default soak is 600 s; set `DREAM_STREET_SOAK_SECONDS` to change it. Reports go to `artifacts/capture/`. `DREAM_STREET_MUSIC=silent` gives a silent run for motion checks. `DREAM_STREET_EXPRESSION=1` exercises high-frequency inputs; `DREAM_STREET_CAPTURE_LABEL=<name>` keeps a run in its own subdirectory.
 
 ## The music
 
@@ -75,14 +77,14 @@ The score shares one beat timeline with the street, the wardrobe and the dance; 
 
 The band is played clean, in the manner of 1970s rock: a dry kit with modelled bronze cymbals, crunchy rather than high-gain guitars, piano, and only a few parts at once, with no synthesisers or pads. Every beat carries an audible pulse, and every chapter entrance is led in by a drum fill. The mix chain's own latency is measured at start-up (about 6 ms in Chrome), and notes are scheduled that much earlier so sound lands on the beat that is shown.
 
-The music panel's comparison switch plays the Sea Power recording that served as a benchmark for power, through YouTube's official player. It mutes the score but not its clock: the picture keeps following the score, and the two are not aligned. The comparison is never recorded.
+The debug music panel's comparison switch (`?debug=1`) plays the Sea Power recording that served as a benchmark for power, through YouTube's official player. It mutes the score but not its clock: the picture keeps following the score, and the two are not aligned. The comparison is never recorded.
 
 ## Layout
 
 | Path | Contents |
 | --- | --- |
 | `src/content/` | The 256-beat street, products and wardrobe state, performance chapters, and the street life and paths of passers-by and cyclists |
-| `src/character/` | The body template, skeletons and IK (elbows bend anatomically), gait, the dance phrases and cloth light |
+| `src/character/` | The body template, skeletons and IK (elbows bend anatomically), gait, the dance phrases, the bounded beat-based expression layer and cloth light |
 | `src/audio/` | The single clock (`transport.js`), the score (`score.js`), instruments (`instruments.js`), guitar chords and cymbals rendered at load time (`tones.js`), the mixer (`mixer.js`), offline rendering (`render.js`), and the comparison-only reference player (`reference.js`) |
 | `src/world/` | Three recycled street segments, 36 instanced passers-by and two bicycles |
 | `src/render/` | The fixed orthographic camera, the shared reflection texture, glass tint and clipping, and the debug close-up camera |
@@ -91,7 +93,7 @@ The music panel's comparison switch plays the Sea Power recording that served as
 
 ## Deployment and rollback
 
-Every push to `main` builds the site and publishes it to GitHub Pages at <https://gamebygame.github.io/dream-street/> (`.github/workflows/pages.yml`). <https://dream-street.jovipro.com/> serves the same files through a small Cloudflare Worker; [deploy/README.md](deploy/README.md) explains why and how it is set up. Pull requests run formatting, unit tests and a build (`.github/workflows/ci.yml`). To roll back, revert the commit on `main`; the workflow republishes the earlier state, and both addresses follow. You can also re-run the Pages workflow on an earlier commit.
+Every push to `main` builds the site and publishes it to GitHub Pages at <https://gamebygame.github.io/dream-street/> (`.github/workflows/pages.yml`). <https://dream-street.jovipro.com/> serves the same files through a small Cloudflare Worker; [deploy/README.md](deploy/README.md) explains why and how it is set up. Pull requests run formatting, unit tests, Chrome browser regressions and a build (`.github/workflows/ci.yml`). To roll back, revert the commit on `main`; the workflow republishes the earlier state, and both addresses follow. You can also re-run the Pages workflow on an earlier commit.
 
 ## Releases
 

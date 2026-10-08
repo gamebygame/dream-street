@@ -6,9 +6,22 @@ All notable changes to Dream Street are documented here. The format follows [Kee
 
 ### Changed
 
+- Four-hit mannequins yield contrast after contact; stronger reflection silhouettes retain the glass tint and sheen.
+- Authored outfit studies give the jacket (beats 18.2–25.1), sportswear (25.1–28), and old clothes (64–72) distinct preparation, holds and recovery.
+- The unsynchronized reference-music comparison is available in the debug view only.
+
 - The canonical address is <https://gamebygame.github.io/dream-street/>, which the README and the package homepage now give first. <https://dream-street.jovipro.com/> stays as an alias while that domain is active. GitHub does not depend on it, so github.io keeps working if the domain lapses.
 
+### Fixed
+
+- Resizing a paused street redraws the held beat and expression without resuming audio.
+- Only the latest music selection can activate the reference player; loading failure preserves the active source and supports retry.
+- Formatting excludes private local Claude configuration.
+
 ### Added
+
+- Optional Space / canvas-tap expression with a bounded, deterministic beat-based input record, coalesced rapid inputs, protected four-hit poses and prop hands, and no score or extra sounds.
+- Chrome regressions in CI and paired watch/input review frames (`--study`).
 
 - A release workflow builds each version tag and publishes its GitHub release with the built site as `.zip` and `.tar.gz`, each with the licence, plus SHA-256 checksums and signed build provenance. The 0.6.0 release received the same assets.
 

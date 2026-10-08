@@ -2,7 +2,7 @@
 
 [English](README.md) | 简体中文
 
-> 对应英文版：2026-10-01。英文版更新后本页可能滞后；以英文版为准。
+> 对应英文版：2026-10-02。英文版更新后本页可能滞后；以英文版为准。
 
 一条永远明亮的白昼街道，和在橱窗里起舞的自己。
 
@@ -23,6 +23,8 @@ Dream Street 把一场梦重建成一个小小的浏览器体验。看到和听�
 npm ci
 npm run dev
 ```
+
+可以不操作，观看完整演出；也可以按空格或点按街道，让倒影多一次上身表达。「跟一下节奏／静静观看」开关可关闭参与。没有分数、错拍或解锁；真人继续走路。
 
 页面隐藏时会暂停，回来后点击「继续」。静音只改变音量。开发和预览服务都只监听 `127.0.0.1`。
 
@@ -57,12 +59,12 @@ npm run preview
 
 评审工具（需先启动开发服务）：
 
-- **调试视图：** `?debug=1` 提供拍号跳转、接触线、分轨开关和录制。
+- **调试视图：** `?debug=1` 提供拍号跳转、接触线、分轨开关、原曲对照和录制。跳拍会清空本次输入记录。
 - **特写：** `?debug=1&inspect=walker|dancer|crowd|cyclist&index=N&zoom=3.6` 保持产品镜头的视角和投影，只拉近对准一个角色，用来判断手臂和肘部。
-- **同拍号截帧：** `node scripts/review-frames.mjs --label <名字>` 把特写和全景存到 `artifacts/review/<名字>/`，便于逐轮并排对照。
+- **同拍号截帧：** `node scripts/review-frames.mjs --label <名字>` 把特写和全景存到 `artifacts/review/<名字>/`，便于逐轮并排对照。加 `--study` 可检查四连、衣装短句和同拍号的观看／输入两版。
 - **配乐渲染：** `node scripts/render-music.mjs --label <名字>` 把各章节、四连段和循环接缝渲染成 WAV，存到 `artifacts/music/<名字>/`。它记录峰值、RMS、峰均比和低频占比，以及每记四连重击的对拍误差和响度分位。
 - **分轨配平：** `node scripts/balance-music.mjs` 逐章节单独渲染每一个分轨。
-- **录制与长跑：** `npm run capture` 录制带配乐音轨的一整轮，同时连续运行。默认运行 600 秒，可用 `DREAM_STREET_SOAK_SECONDS` 调整。报告写入 `artifacts/capture/`。`DREAM_STREET_MUSIC=silent` 用于无声的动作检查。
+- **录制与长跑：** `npm run capture` 录制带配乐音轨的一整轮，同时连续运行。默认运行 600 秒，可用 `DREAM_STREET_SOAK_SECONDS` 调整。报告写入 `artifacts/capture/`。`DREAM_STREET_MUSIC=silent` 用于无声的动作检查。`DREAM_STREET_EXPRESSION=1` 会持续高频输入；`DREAM_STREET_CAPTURE_LABEL=<名字>` 将这次证据保存在独立子目录。
 
 ## 音乐
 
@@ -77,14 +79,14 @@ npm run preview
 
 乐队按 1970 年代摇滚的方式干净地演奏：干爽的鼓组配模拟青铜镲片、有颗粒感但不过载的吉他、钢琴，同时发声的声部很少，没有合成器和铺底音色。每一拍都有可听的节拍，每个章节入口都由一段鼓的过门引入。启动时实测混音链自身的延迟（Chrome 中约 6 ms），音符提前这段时间发出，让声音落在画面显示的那一拍上。
 
-音乐面板里的对照开关通过 YouTube 官方播放器，播放当初用来衡量力量感的 Sea Power 原曲。它让配乐静音，但配乐的时钟照走：画面继续跟随配乐，两者不对齐。对照内容永远不会被录制。
+调试模式（`?debug=1`）音乐面板里的对照开关通过 YouTube 官方播放器，播放当初用来衡量力量感的 Sea Power 原曲。它让配乐静音，但配乐的时钟照走：画面继续跟随配乐，两者不对齐。对照内容永远不会被录制。
 
 ## 目录结构
 
 | 路径 | 内容 |
 | --- | --- |
 | `src/content/` | 256 拍街段、商品与衣装状态、表演章节，以及路人和骑车人的街头生活与路径 |
-| `src/character/` | 身体母本、骨架与 IK（肘部按解剖方向弯曲）、步态、各段舞句和衣料折光 |
+| `src/character/` | 身体母本、骨架与 IK（肘部按解剖方向弯曲）、步态、各段舞句、有界的拍号表达层和衣料折光 |
 | `src/audio/` | 唯一时钟（`transport.js`）、配乐（`score.js`）、乐器（`instruments.js`）、加载时渲染的吉他和弦与镲片（`tones.js`）、混音（`mixer.js`）、离线渲染（`render.js`），以及仅作对照的原曲播放器（`reference.js`） |
 | `src/world/` | 三段循环复用的街道、36 名实例化路人和两辆自行车 |
 | `src/render/` | 固定正交镜头、共享倒影纹理、玻璃染色与裁切，以及调试特写相机 |
@@ -93,7 +95,7 @@ npm run preview
 
 ## 部署与回滚
 
-每次推送到 `main` 都会构建网站，并发布到 GitHub Pages 的 <https://gamebygame.github.io/dream-street/>（`.github/workflows/pages.yml`）。<https://dream-street.jovipro.com/> 通过一个小型 Cloudflare Worker 提供同样的文件，原因和配置见 [deploy/README.md](deploy/README.md)。PR 会运行格式检查、单元测试和构建（`.github/workflows/ci.yml`）。回滚时，在 `main` 上 revert 那次提交，工作流会重新发布之前的状态，两个地址同时跟上；也可以在更早的提交上重新运行 Pages 工作流。
+每次推送到 `main` 都会构建网站，并发布到 GitHub Pages 的 <https://gamebygame.github.io/dream-street/>（`.github/workflows/pages.yml`）。<https://dream-street.jovipro.com/> 通过一个小型 Cloudflare Worker 提供同样的文件，原因和配置见 [deploy/README.md](deploy/README.md)。PR 会运行格式检查、单元测试、Chrome 浏览器回归和构建（`.github/workflows/ci.yml`）。回滚时，在 `main` 上 revert 那次提交，工作流会重新发布之前的状态，两个地址同时跟上；也可以在更早的提交上重新运行 Pages 工作流。
 
 ## 版本发布
 
