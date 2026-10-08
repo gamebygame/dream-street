@@ -4,6 +4,7 @@ test-results/
 playwright-report/
 node_modules/
 .cache/
+.claude/
 public/
 package.json
 package-lock.json

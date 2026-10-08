@@ -5,8 +5,9 @@ import { resolve } from 'node:path';
 import { setTimeout as wait } from 'node:timers/promises';
 
 const baseURL = process.env.DREAM_STREET_URL || 'http://127.0.0.1:5173';
-const destination = resolve('artifacts/capture');
+const destination = resolve('artifacts/capture', process.env.DREAM_STREET_CAPTURE_LABEL || '');
 const silent = process.env.DREAM_STREET_MUSIC === 'silent';
+const expression = process.env.DREAM_STREET_EXPRESSION === '1';
 const soakSeconds = Number(process.env.DREAM_STREET_SOAK_SECONDS || 600);
 await mkdir(destination, { recursive: true });
 let server, browser;
@@ -71,12 +72,22 @@ try {
   }));
   const started = Date.now(),
     samples = [];
+  let acceptedInputs = 0;
   const recording = page.evaluate(async () => {
     // One full street cycle plus a margin; the score's own audio is recorded with the picture.
     window.__recordingResult = await window.__dreamStreet.record();
     const { blob, ...metadata } = window.__recordingResult;
     return metadata;
   });
+  const inputTimer = expression
+    ? setInterval(async () => {
+        try {
+          if (await page.evaluate(() => window.__dreamStreet.express())) acceptedInputs++;
+        } catch (error) {
+          errors.push(error.message);
+        }
+      }, 80)
+    : null;
   const cadence = setInterval(async () => {
     try {
       const snapshot = await page.evaluate(() => window.__dreamStreet.snapshot());
@@ -114,6 +125,7 @@ try {
     await wait(Math.max(0, soakSeconds * 1000 - (Date.now() - started)));
   } finally {
     clearInterval(cadence);
+    if (inputTimer) clearInterval(inputTimer);
   }
   const final = await page.evaluate(() => window.__dreamStreet.snapshot());
   await page.evaluate(() => window.__dreamStreet.pause());
@@ -133,9 +145,13 @@ try {
     boundedVoices: samples.every(s => s.audio.activeVoices < 400),
     correctSource: samples.every(s => s.audio.music.mode === (silent ? 'silent' : 'score')),
     recordedAudio: silent || metadata.hasAudio === true,
+    boundedExpression: samples.every(s => s.visual.expression.events.length <= 32),
+    expressionExercised: !expression || acceptedInputs > 100,
   };
   const report = {
     info,
+    expression,
+    acceptedInputs,
     node: process.version,
     soakSeconds: (Date.now() - started) / 1000,
     recording: metadata,

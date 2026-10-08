@@ -7,7 +7,9 @@ import { resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { parseArgs } from 'node:util';
 
-const { values: args } = parseArgs({ options: { label: { type: 'string' }, url: { type: 'string' } } });
+const { values: args } = parseArgs({
+  options: { label: { type: 'string' }, url: { type: 'string' }, study: { type: 'boolean' } },
+});
 const baseURL = args.url || process.env.DREAM_STREET_URL || 'http://127.0.0.1:5173';
 const label = args.label || execFileSync('git', ['rev-parse', '--short', 'HEAD']).toString().trim();
 const destination = resolve('artifacts/review', label);
@@ -33,6 +35,10 @@ const SHOTS = [
   { kind: 'cyclist', index: 1, zoom: 7, beats: [184, 190, 193, 197, 204] },
   { kind: 'scene', beats: [60, 66, 72, 78, 84, 90, 96, 102, 108] },
 ];
+const STUDY_SHOTS = [
+  { kind: 'scene', beats: [18.2, 20.2, 22.3, 25.1, 26, 27.1, 49.4, 50, 52, 54, 56, 64, 66.6, 69, 72, 150, 166] },
+  { kind: 'dancer', beats: [20.2, 22.3, 26, 27.1, 50, 52, 54, 56, 66.6, 69] },
+];
 
 await mkdir(destination, { recursive: true });
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
@@ -43,7 +49,7 @@ try {
   await page.goto(`${baseURL}/?debug=1&music=silent`);
   await page.waitForFunction(() => window.__dreamStreet?.ready && window.__dreamStreet.music.mode === 'silent');
   await page.addStyleTag({ content: '#entrance,#debug,.masthead,.controls,#official-shell{display:none!important}' });
-  for (const shot of SHOTS) {
+  for (const shot of args.study ? STUDY_SHOTS : SHOTS) {
     await page.evaluate(
       ({ kind, index, zoom }) =>
         window.__dreamStreet.renderer.setInspect(
@@ -55,6 +61,27 @@ try {
       await page.evaluate(b => window.__dreamStreet.seek(b), beat);
       const name = `${shot.kind}${shot.index === undefined ? '' : '-' + shot.index}${shot.zoom ? '-wide' : ''}-${beat}.png`;
       await page.locator('#stage canvas').screenshot({ path: resolve(destination, name) });
+    }
+  }
+  if (args.study) {
+    for (const kind of ['scene', 'dancer']) {
+      await page.evaluate(kind => window.__dreamStreet.renderer.setInspect(kind === 'scene' ? null : { kind }), kind);
+      for (const beat of [21, 27, 52, 67, 104, 150, 166, 220]) {
+        for (const expression of [false, true]) {
+          await page.evaluate(
+            async ({ beat, expression }) => {
+              const app = window.__dreamStreet;
+              await app.seek(beat);
+              if (expression) app.renderer.expression.add(beat - 0.2);
+              app.renderer.render(beat, false);
+            },
+            { beat, expression },
+          );
+          await page
+            .locator('#stage canvas')
+            .screenshot({ path: resolve(destination, `${kind}-${beat}-${expression ? 'input' : 'watch'}.png`) });
+        }
+      }
     }
   }
   if (errors.length) throw new Error(errors.join('\n'));
